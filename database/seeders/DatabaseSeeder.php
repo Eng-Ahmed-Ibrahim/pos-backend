@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,6 +17,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        User::create([
+            "name"=>"Admin",
+            "email"=>"admin@dar.net",
+            "password"=>Hash::make("12345678"),
+        ]);
         DB::statement('ALTER TABLE purchases AUTO_INCREMENT = 1000');
         
     }

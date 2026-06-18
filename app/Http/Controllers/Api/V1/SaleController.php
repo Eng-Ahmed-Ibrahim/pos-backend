@@ -125,7 +125,7 @@ class SaleController extends Controller
             'data' => $sale->load('items.product'),
         ], 201);
     }
-
+ 
     public function show($id)
     {
         $sale = Sale::with('items.product')->findOrFail($id);

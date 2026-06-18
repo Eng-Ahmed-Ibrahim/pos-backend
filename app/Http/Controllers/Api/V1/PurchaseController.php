@@ -59,7 +59,7 @@ class PurchaseController extends Controller
         $validator = Validator::make($request->all(), [
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'date' => ['required', 'date'],
-            'required' => 'nullable|image|mimes:jpg,png,jpeg',
+            'image' => 'required|image',
 
             // 'invoice_number' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
