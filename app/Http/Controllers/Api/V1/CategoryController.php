@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Helpers\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
@@ -14,9 +16,10 @@ class CategoryController extends Controller
      */
     public function index()
     {
+        $categories = Helpers::cache_categories();
         return response()->json([
             'status' => true,
-            'data' => Category::latest()->get()
+            'data' => $categories
         ]);
     }
 
@@ -50,7 +53,7 @@ class CategoryController extends Controller
         }
 
         $category = Category::create($data);
-
+        Helpers::delete_categories();
         return response()->json([
             'status' => true,
             'message' => 'Category created successfully',
@@ -118,6 +121,7 @@ class CategoryController extends Controller
         }
 
         $category->update($data);
+        Helpers::delete_categories();
 
         return response()->json([
             'status' => true,
@@ -147,6 +151,7 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+        Helpers::delete_categories();
 
         return response()->json([
             'status' => true,

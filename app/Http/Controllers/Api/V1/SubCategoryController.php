@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Helpers\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\SubCategory;
@@ -12,8 +13,8 @@ class SubCategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::all();
-        $subCategories = SubCategory::with('category')->latest()->get();
+        $categories = Helpers::cache_categories();
+        $subCategories = Helpers::cache_sub_categories();
         $data=[
             'categories'=> $categories,
             'sub_categories'=>  $subCategories
@@ -39,7 +40,7 @@ class SubCategoryController extends Controller
         }
 
         $subCategory = SubCategory::create($validator->validated());
-
+        Helpers::delete_sub_categories();
         return response()->json([
             'status' => true,
             'message' => 'Sub category created successfully',
@@ -88,6 +89,7 @@ class SubCategoryController extends Controller
         }
 
         $subCategory->update($validator->validated());
+        Helpers::delete_sub_categories();
 
         return response()->json([
             'status' => true,
@@ -114,6 +116,7 @@ class SubCategoryController extends Controller
         }
 
         $subCategory->delete();
+        Helpers::delete_sub_categories();
 
         return response()->json([
             'status' => true,

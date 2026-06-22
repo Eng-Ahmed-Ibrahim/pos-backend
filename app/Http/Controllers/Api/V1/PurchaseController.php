@@ -12,6 +12,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\Helpers;
 
 class PurchaseController extends Controller
 {
@@ -39,10 +40,10 @@ class PurchaseController extends Controller
     }
     public function create(Request $request)
     {
-        $categories = Category::all();
-        $suppliers = Supplier::all();
-        $sub_categories = SubCategory::all();
-        $products = Product::all();
+        $categories = Helpers::cache_categories();
+        $suppliers = Helpers::cache_suppliers();
+        $sub_categories =  Helpers::cache_sub_categories();
+        $products = Helpers::cache_products();
         $data = [
             "categories" => $categories,
             "suppliers" => $suppliers,
@@ -122,7 +123,7 @@ class PurchaseController extends Controller
                 $product = Product::find($item['product_id']);
                 $product->increment('stock', $item['quantity']);
             }
-
+            Helpers::delete_products();
             return $purchase;
         });
 
@@ -221,7 +222,7 @@ class PurchaseController extends Controller
                 $product->increment('stock', $item['quantity']);
             }
             DB::table('purchase_items')->insert($itemData);
-
+            Helpers::delete_products();
             return $purchase;
         });
 

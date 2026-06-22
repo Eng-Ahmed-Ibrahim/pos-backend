@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Helpers\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class SupplierController extends Controller
      */
     public function index()
     {
-        $suppliers = Supplier::latest()->get();
+        $suppliers = Helpers::cache_suppliers();
 
         return response()->json([
             'status' => true,
@@ -41,7 +42,7 @@ class SupplierController extends Controller
         }
 
         $supplier = Supplier::create($validator->validated());
-
+        Helpers::delete_suppliers();
         return response()->json([
             'status' => true,
             'message' => 'Supplier created successfully',
@@ -78,7 +79,7 @@ class SupplierController extends Controller
         }
 
         $supplier->update($validator->validated());
-
+        Helpers::delete_suppliers();
         return response()->json([
             'status' => true,
             'message' => 'Supplier updated successfully',
@@ -101,7 +102,7 @@ class SupplierController extends Controller
         }
 
         $supplier->delete();
-
+        Helpers::delete_suppliers();
         return response()->json([
             'status' => true,
             'message' => 'Supplier deleted successfully',

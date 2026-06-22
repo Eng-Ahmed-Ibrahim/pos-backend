@@ -8,7 +8,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Product extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = [
+        'barcode',
+        'name',
+        'price',
+        'category_id',
+        'sub_category_id',
+        'brand_id',
+        'minimum_stock',
+        'stock',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+
     public function category()
     {
         return $this->belongsTo(Category::class);

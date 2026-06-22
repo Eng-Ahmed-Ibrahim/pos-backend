@@ -12,4 +12,10 @@ class Sale extends Model
     {
         return $this->hasMany(SaleItems::class);
     }
+
+
+    public function returns()
+    {
+        return $this->hasMany(SaleReturn::class);
+    }
 }

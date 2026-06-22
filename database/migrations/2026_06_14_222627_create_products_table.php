@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('barcode');
-
+            $table->string('barcode')->unique();
             $table->foreignId('category_id')
                 ->nullable()
                 ->constrained('categories')
@@ -25,7 +24,11 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('sub_categories')
                 ->nullOnDelete();
-                
+            $table->foreignId('brand_id')
+                ->nullable()
+                ->constrained('brands')
+                ->nullOnDelete();
+
             $table->integer('minimum_stock')->default(0);
             $table->integer('stock')->default(0);
             $table->integer('price')->default(0);

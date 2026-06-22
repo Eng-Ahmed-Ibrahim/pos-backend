@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Helpers\Helpers;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
@@ -11,16 +12,39 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductsController extends Controller
 {
-    /**
-     * GET /api/v1/products
-     */
-    public function index()
+
+    public function cached_product()
     {
-        $products = Product::with(['category', 'sub_category'])->latest()->get();
-        $categories = Category::latest()->get();
-        $sub_categories = SubCategory::latest()->get();
+        $products = Helpers::cache_products();
+        $data = ['products' => $products];
+        return response()->json([
+            'status' => true,
+            'data' => $data
+        ]);
+    }
+    public function index(Request $request)
+    {
+        $query = Product::with(['category', 'sub_category']);
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('barcode', 'like', "%{$request->search}%");
+            });
+        }
+
+        $products = $query->latest()->paginate(20);
+
+        $categories = Helpers::cache_categories();
+        $sub_categories = Helpers::cache_sub_categories();
         $data = [
-            'products' => $products,
+            'products' => $products->items(),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page'    => $products->lastPage(),
+                'per_page'     => $products->perPage(),
+                'total'        => $products->total(),
+            ],
             'categories' => $categories,
             'sub_categories' => $sub_categories,
         ];
@@ -52,7 +76,7 @@ class ProductsController extends Controller
         }
 
         $product = Product::create($validator->validated());
-
+        Helpers::delete_products();
         return response()->json([
             'status' => true,
             'message' => 'Product created successfully',
@@ -111,6 +135,7 @@ class ProductsController extends Controller
         }
 
         $product->update($validator->validated());
+        Helpers::delete_products();
 
         return response()->json([
             'status' => true,
@@ -134,6 +159,7 @@ class ProductsController extends Controller
         }
 
         $product->delete();
+        Helpers::delete_products();
 
         return response()->json([
             'status' => true,

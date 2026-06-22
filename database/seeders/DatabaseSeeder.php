@@ -17,12 +17,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            "name"=>"Admin",
-            "email"=>"admin@dar.net",
-            "password"=>Hash::make("12345678"),
-        ]);
+        $this->call(UserSeeder::class);
         DB::statement('ALTER TABLE purchases AUTO_INCREMENT = 1000');
-        
     }
 }

@@ -12,6 +12,13 @@ use Illuminate\Support\Facades\Validator;
 
 class SaleController extends Controller
 {
+    public function index(){
+        $sales = Sale::with(['items','items.product'])->get();
+        return response()->json([
+            "status"=>true,
+            "sales"=>$sales
+        ]);
+    }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
