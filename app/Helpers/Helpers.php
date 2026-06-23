@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\SubCategory;
 use App\Models\Supplier;
 use Illuminate\Support\Facades\Cache;
@@ -58,5 +59,17 @@ class Helpers
     {
         Cache::forget('products');
         return  self::cache_products();
+    }
+    // settings
+    public static function cache_settings()
+    {
+        return Cache::rememberForever('settings', function () {
+            return Setting::pluck('value', 'key')->toArray();
+        });
+    }
+    public static function delete_settings()
+    {
+        Cache::forget('settings');
+        return  self::cache_settings();
     }
 }

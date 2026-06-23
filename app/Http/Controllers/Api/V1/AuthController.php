@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Helpers\Helpers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -52,10 +53,12 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
+        $settings = Helpers::cache_settings();
         return response()->json([
             'user' => $user,
             'permissions' => $user->getAllPermissions()->pluck('name'),
             'roles' => $user->getRoleNames(),
+            'settings'=> $settings
         ]);
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\RolesController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\SaleReturnController;
+use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SubCategoryController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\UsersController;
@@ -42,6 +43,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('sales/{id}', [SaleReturnController::class, 'showSale']);
         Route::post('sales/{sale}/return', [SaleReturnController::class, 'store']);
+
+        Route::get('settings',[SettingsController::class,'index']);
+        Route::post('settings/update',[SettingsController::class,'createOrUpdate']);
     });
     Route::get('sales', [SaleController::class, 'index']);
 });

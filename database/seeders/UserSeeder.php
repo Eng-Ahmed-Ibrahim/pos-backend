@@ -184,6 +184,13 @@ class UserSeeder extends Seeder
                     "display_name" => "عرض التقارير",
                     "display_section" => "التقارير",
                 ],
+            ],
+            'settings'=>[
+                                [
+                    "name" => "view",
+                    "display_name" => "عرض الاعدادات",
+                    "display_section" => "الاعدادات",
+                ],
             ]
 
         ];
