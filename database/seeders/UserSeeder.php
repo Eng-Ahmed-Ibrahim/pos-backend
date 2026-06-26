@@ -191,7 +191,14 @@ class UserSeeder extends Seeder
                     "display_name" => "عرض الاعدادات",
                     "display_section" => "الاعدادات",
                 ],
-            ]
+            ],
+            'sales'=>[
+                                [
+                    "name" => "view",
+                    "display_name" => "عرض المبيعات",
+                    "display_section" => "المبيعات",
+                ],
+            ],
 
         ];
         // Create Roles

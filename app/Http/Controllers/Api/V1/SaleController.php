@@ -94,6 +94,8 @@ class SaleController extends Controller
 
                         $deductFromThis = min($batch->remaining_stock, $remainingToDeduct);
                         $batch->decrement('remaining_stock', $deductFromThis);
+                            $batch->increment('total_sold', $deductFromThis);
+
                         $remainingToDeduct -= $deductFromThis;
                     }
 

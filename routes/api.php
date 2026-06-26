@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ProductImportController;
 use App\Http\Controllers\Api\V1\ProductsController;
 use App\Http\Controllers\Api\V1\PurchaseController;
+use App\Http\Controllers\Api\V1\ReportsController;
 use App\Http\Controllers\Api\V1\RolesController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\SaleReturnController;
@@ -43,6 +44,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('sales/{id}', [SaleReturnController::class, 'showSale']);
         Route::post('sales/{sale}/return', [SaleReturnController::class, 'store']);
+
+        Route::get('reports',[ReportsController::class,'index']);
 
         Route::get('settings',[SettingsController::class,'index']);
         Route::post('settings/update',[SettingsController::class,'createOrUpdate']);

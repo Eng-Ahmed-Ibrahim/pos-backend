@@ -164,7 +164,6 @@ class PurchaseController extends Controller
 
         $validated = $validator->validated();
 
-        // لو رفع صورة جديدة، نحفظها ونحذف القديمة
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $imageName = time() . '_' . $image->getClientOriginalName();
@@ -177,24 +176,19 @@ class PurchaseController extends Controller
         }
 
         $purchase = DB::transaction(function () use ($purchase, $validated) {
-            // 1) التراجع عن تأثير الأصناف القديمة على المخزون
             foreach ($purchase->items as $oldItem) {
                 $product = Product::find($oldItem->product_id);
                 if ($product) {
                     $product->decrement('stock', $oldItem->quantity);
                 }
             }
-
-            // 2) حذف الأصناف القديمة لاستبدالها بالأصناف الجديدة
             $purchase->items()->delete();
 
-            // 3) حساب الإجمالي الجديد
             $total = 0;
             foreach ($validated['items'] as $item) {
                 $total += $item['quantity'] * $item['price'];
             }
 
-            // 4) تحديث بيانات الفاتورة نفسها
             $purchase->update([
                 'supplier_id' => $validated['supplier_id'],
                 'date' => $validated['date'],
@@ -204,20 +198,18 @@ class PurchaseController extends Controller
             ]);
 
             $itemData = [];
-            // 5) إضافة الأصناف الجديدة وتحديث المخزون
             foreach ($validated['items'] as $item) {
                 $itemTotal = $item['quantity'] * $item['price'];
                 $itemData[] = [
                     'purchase_id' => $purchase->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
-                    'remaining_stock' => $item['quantity'],
+                    'remaining_stock' => $item['quantity'] ,
                     'price' => $item['price'],
                     'total' => $itemTotal,
                     'expire_date' => $item['expire_date'],
                     "created_at" => now(),
                 ];
-
                 $product = Product::find($item['product_id']);
                 $product->increment('stock', $item['quantity']);
             }
