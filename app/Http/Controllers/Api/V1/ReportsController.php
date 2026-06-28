@@ -55,8 +55,8 @@ class ReportsController extends Controller
 
         return response()->json([
             "status"     => true,
-            // 'reports'    => $reports->items(),
-            'reports'    => [],
+            'reports'    => $reports->items(),
+            // 'reports'    => [],
             'summary'    => [
                 'grand_total'       => $grandTotal,
                 'grand_amount_paid' => $grandTotal,

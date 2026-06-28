@@ -33,7 +33,7 @@ class ProductsController extends Controller
             });
         }
 
-        $products = $query->latest()->paginate(20);
+        $products = $query->orderBy("price","DESC")->paginate(15);
 
         $categories = Helpers::cache_categories();
         $sub_categories = Helpers::cache_sub_categories();

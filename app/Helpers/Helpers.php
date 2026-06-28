@@ -52,6 +52,7 @@ class Helpers
     {
         return Cache::rememberForever('products', function () {
             return Product::select('id', 'name', 'barcode', 'price', 'category_id','sub_category_id','stock')
+                ->where("price",">",0)
                 ->get()->toArray();
         });
     }
