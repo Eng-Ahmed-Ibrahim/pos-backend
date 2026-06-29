@@ -173,48 +173,76 @@ class PurchaseController extends Controller
             if ($purchase->image && file_exists(public_path($purchase->image))) {
                 @unlink(public_path($purchase->image));
             }
-        }
+        }   
+        return response()->json([$purchase->items->keyBy('product_id')]);
 
         $purchase = DB::transaction(function () use ($purchase, $validated) {
-            foreach ($purchase->items as $oldItem) {
-                $product = Product::find($oldItem->product_id);
-                if ($product) {
-                    $product->decrement('stock', $oldItem->quantity);
+
+            $oldItemsMap = $purchase->items->keyBy('product_id');
+
+            $newItemsMap = collect($validated['items'])->keyBy('product_id');
+
+            foreach ($oldItemsMap as $productId => $oldItem) {
+
+                if ($newItemsMap->has($productId)) {
+                    $newItem = $newItemsMap[$productId];
+                    $qtyDiff = $newItem['quantity'] - $oldItem->quantity;
+
+                    $newRemaining = $oldItem->remaining_stock + $qtyDiff;
+
+                    if ($newRemaining < 0) {
+                        throw new \Exception("لا يمكن تقليل الكمية، تم بيع جزء منها بالفعل");
+                    }
+
+                    $product = Product::find($productId);
+                    if ($qtyDiff > 0) {
+                        $product->increment('stock', $qtyDiff);
+                    } elseif ($qtyDiff < 0) {
+                        $product->decrement('stock', abs($qtyDiff));
+                    }
+
+                    $oldItem->update([
+                        'quantity'        => $newItem['quantity'],
+                        'remaining_stock' => $newRemaining,
+                        'price'           => $newItem['price'],
+                        'total'           => $newItem['quantity'] * $newItem['price'],
+                        'expire_date'     => $newItem['expire_date'],
+                    ]);
+                } else {
+                    if ($oldItem->remaining_stock < $oldItem->quantity) {
+                        throw new \Exception("لا يمكن حذف \"{$oldItem->product->name}\" لأنه تم بيع جزء منه");
+                    }
+                    Product::find($productId)?->decrement('stock', $oldItem->quantity);
+                    $oldItem->delete();
                 }
             }
-            $purchase->items()->delete();
 
-            $total = 0;
-            foreach ($validated['items'] as $item) {
-                $total += $item['quantity'] * $item['price'];
+            foreach ($newItemsMap as $productId => $newItem) {
+                if (!$oldItemsMap->has($productId)) {
+                    PurchaseItems::create([
+                        'purchase_id'     => $purchase->id,
+                        'product_id'      => $productId,
+                        'quantity'        => $newItem['quantity'],
+                        'remaining_stock' => $newItem['quantity'],
+                        'price'           => $newItem['price'],
+                        'total'           => $newItem['quantity'] * $newItem['price'],
+                        'expire_date'     => $newItem['expire_date'],
+                    ]);
+
+                    Product::find($productId)?->increment('stock', $newItem['quantity']);
+                }
             }
+
+            $total = collect($validated['items'])->sum(fn($i) => $i['quantity'] * $i['price']);
 
             $purchase->update([
                 'supplier_id' => $validated['supplier_id'],
-                'date' => $validated['date'],
-                'notes' => $validated['notes'] ?? $purchase->notes,
-                'total' => $total,
-                'image' => $validated['image'] ?? $purchase->image,
+                'date'        => $validated['date'],
+                'notes'       => $validated['notes'] ?? $purchase->notes,
+                'total'       => $total,
+                'image'       => $validated['image'] ?? $purchase->image,
             ]);
 
-            $itemData = [];
-            foreach ($validated['items'] as $item) {
-                $itemTotal = $item['quantity'] * $item['price'];
-                $itemData[] = [
-                    'purchase_id' => $purchase->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'remaining_stock' => $item['quantity'] ,
-                    'price' => $item['price'],
-                    'total' => $itemTotal,
-                    'expire_date' => $item['expire_date'],
-                    "created_at" => now(),
-                ];
-                $product = Product::find($item['product_id']);
-                $product->increment('stock', $item['quantity']);
-            }
-            DB::table('purchase_items')->insert($itemData);
-            Helpers::delete_products();
             return $purchase;
         });
 
