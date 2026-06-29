@@ -43,7 +43,7 @@ class PurchaseController extends Controller
         $categories = Helpers::cache_categories();
         $suppliers = Helpers::cache_suppliers();
         $sub_categories =  Helpers::cache_sub_categories();
-        $products = Helpers::cache_products();
+        $products = Helpers::cache_all_products();
         $data = [
             "categories" => $categories,
             "suppliers" => $suppliers,
@@ -174,7 +174,6 @@ class PurchaseController extends Controller
                 @unlink(public_path($purchase->image));
             }
         }   
-        return response()->json([$purchase->items->keyBy('product_id')]);
 
         $purchase = DB::transaction(function () use ($purchase, $validated) {
 

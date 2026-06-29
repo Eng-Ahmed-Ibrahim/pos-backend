@@ -82,7 +82,7 @@ class SaleController extends Controller
                         ->where('purchase_items.remaining_stock', '>', 0)
                         ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
                         ->whereNull('purchases.deleted_at')
-                        ->orderBy('purchase_items.created_at')
+                        ->orderBy('purchases.date')
                         ->select('purchase_items.*')
                         ->lockForUpdate()
                         ->get();

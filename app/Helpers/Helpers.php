@@ -53,6 +53,7 @@ class Helpers
         return Cache::rememberForever('products', function () {
             return Product::select('id', 'name', 'barcode', 'price', 'category_id','sub_category_id','stock')
                 ->where("price",">",0)
+                ->where('stock','>',0)
                 ->get()->toArray();
         });
     }
@@ -60,6 +61,19 @@ class Helpers
     {
         Cache::forget('products');
         return  self::cache_products();
+    }
+    // cache all products
+    public static function cache_all_products()
+    {
+        return Cache::rememberForever('all_products', function () {
+            return Product::select('id', 'name', 'barcode', 'price', 'category_id','sub_category_id','stock')
+                ->get()->toArray();
+        });
+    }
+    public static function delete_all_products()
+    {
+        Cache::forget('all_products');
+        return  self::cache_all_products();
     }
     // settings
     public static function cache_settings()
