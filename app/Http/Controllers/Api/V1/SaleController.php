@@ -70,7 +70,6 @@ class SaleController extends Controller
                         throw new \Exception("الكمية المطلوبة من \"{$product->name}\" أكبر من المخزون المتاح ({$product->stock})");
                     }
 
-                    // خصم الكمية من المخزون الكلى للمنتج
                     $product->decrement('stock', $item['quantity']);
 
                     // خصم الكمية من دفعات الشراء (purchase_items) بنظام FIFO:
