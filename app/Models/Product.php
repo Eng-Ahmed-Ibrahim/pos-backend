@@ -16,10 +16,10 @@ class Product extends Model
         'sub_category_id',
         'brand_id',
         'minimum_stock',
-        'stock',
         'created_at',
         'updated_at',
         'deleted_at',
+
     ];
 
     public function category()
@@ -29,5 +29,9 @@ class Product extends Model
     public function sub_category()
     {
         return $this->belongsTo(SubCategory::class);
+    }
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItems::class);
     }
 }

@@ -2,11 +2,11 @@
 
 namespace App\Helpers;
 
-use App\Models\Category;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Models\SubCategory;
+use App\Models\Category;
 use App\Models\Supplier;
+use App\Models\SubCategory;
 use Illuminate\Support\Facades\Cache;
 
 class Helpers
@@ -51,9 +51,11 @@ class Helpers
     public static function cache_products()
     {
         return Cache::rememberForever('products', function () {
-            return Product::select('id', 'name', 'barcode', 'price', 'category_id','sub_category_id','stock')
-                ->where("price",">",0)
-                ->where('stock','>',0)
+            return Product::select('id', 'name', 'barcode', 'price', 'category_id', 'sub_category_id')
+                ->where("price", ">", 0)
+                ->whereHas('purchaseItems', function ($query) {
+                    $query->where('remaining_stock', '>', 0);
+                })
                 ->get()->toArray();
         });
     }
@@ -66,7 +68,7 @@ class Helpers
     public static function cache_all_products()
     {
         return Cache::rememberForever('all_products', function () {
-            return Product::select('id', 'name', 'barcode', 'price', 'category_id','sub_category_id','stock')
+            return Product::select('id', 'name', 'barcode', 'price', 'category_id', 'sub_category_id')
                 ->get()->toArray();
         });
     }

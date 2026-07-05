@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\Product;
-use App\Models\Purchase;
-use App\Models\PurchaseItems;
-use App\Models\SubCategory;
-use App\Models\Supplier;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use App\Helpers\Helpers;
+use App\Models\Category;
+use App\Models\Purchase;
+use App\Models\Supplier;
+use App\Models\SubCategory;
+use Illuminate\Http\Request;
+use App\Models\PurchaseItems;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
 
 class PurchaseController extends Controller
 {
@@ -118,10 +118,6 @@ class PurchaseController extends Controller
                     'total' => $total,
                     "expire_date" => $item['expire_date']
                 ]);
-
-                // تحديث المخزون: إضافة الكمية المُشتراة لمخزون المنتج
-                $product = Product::find($item['product_id']);
-                $product->increment('stock', $item['quantity']);
             }
             Helpers::delete_products();
             return $purchase;

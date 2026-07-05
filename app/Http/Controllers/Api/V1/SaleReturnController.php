@@ -2,13 +2,13 @@
 // app/Http/Controllers/Api/V1/SaleReturnController.php
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItems;
 use App\Models\SaleReturn;
-use App\Models\SaleReturnItems;
 use Illuminate\Http\Request;
+use App\Models\SaleReturnItems;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 
 class SaleReturnController extends Controller
@@ -94,9 +94,7 @@ class SaleReturnController extends Controller
 
                     // إرجاع الكمية لمخزون المنتج
                     $product = $saleItem->product()->lockForUpdate()->first();
-                    if ($product) {
-                        $product->increment('stock', $qty);
-                    }
+             
                 }
 
                 $saleReturn->update(['total_amount' => $totalAmount]);

@@ -1,21 +1,21 @@
 <?php
 
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\CategoryController;
-use App\Http\Controllers\Api\V1\ProductImportController;
-use App\Http\Controllers\Api\V1\ProductsController;
-use App\Http\Controllers\Api\V1\PurchaseController;
-use App\Http\Controllers\Api\V1\ReportsController;
-use App\Http\Controllers\Api\V1\RolesController;
-use App\Http\Controllers\Api\V1\SaleController;
-use App\Http\Controllers\Api\V1\SaleReturnController;
-use App\Http\Controllers\Api\V1\SettingsController;
-use App\Http\Controllers\Api\V1\SubCategoryController;
-use App\Http\Controllers\Api\V1\SupplierController;
-use App\Http\Controllers\Api\V1\UsersController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\RolesController;
+use App\Http\Controllers\Api\V1\UsersController;
+use App\Http\Controllers\Api\V1\ReportsController;
+use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\ProductsController;
+use App\Http\Controllers\Api\V1\PurchaseController;
+use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\SaleReturnController;
+use App\Http\Controllers\Api\V1\SubCategoryController;
+use App\Http\Controllers\Api\V1\ProductImportController;
+use App\Http\Controllers\Api\V1\WarehouseInventoryController;
 
 Route::prefix('v1')->group(function () {
     Route::post('/products/import', [ProductImportController::class, 'import']);
@@ -51,4 +51,5 @@ Route::prefix('v1')->group(function () {
         Route::post('settings/update',[SettingsController::class,'createOrUpdate']);
     });
     Route::get('sales', [SaleController::class, 'index']);
+    Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
 });
