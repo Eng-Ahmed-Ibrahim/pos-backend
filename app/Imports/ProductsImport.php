@@ -25,7 +25,6 @@ class ProductsImport implements ToCollection, WithHeadingRow, WithChunkReading
             if (!$barcode || !$name) {
                 continue;
             }
-
             $this->batch[] = [
                 'barcode'     => $barcode,
                 'name'        => $name,
@@ -36,8 +35,7 @@ class ProductsImport implements ToCollection, WithHeadingRow, WithChunkReading
                 'updated_at'  => now(),
             ];
 
-            // كل 1000 سجل نعمل insert
-            if (count($this->batch) >= 1000) {
+            if (count($this->batch) >= $this->chunkSize()) {
                 $this->flush();
             }
         }

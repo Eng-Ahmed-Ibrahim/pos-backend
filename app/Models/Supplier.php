@@ -9,4 +9,7 @@ class Supplier extends Model
 {
     use SoftDeletes;
     protected $guarded = [];
+            public function purchases(){
+        return $this->hasMany(Purchase::class);
+    }
 }

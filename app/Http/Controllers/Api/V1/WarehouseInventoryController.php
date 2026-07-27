@@ -22,7 +22,7 @@ class WarehouseInventoryController extends Controller
                 $q->where('date', '<', $startOfMonth)
                     ->whereNotIn('status', ['cancelled', 'rejected'])
             )
-            ->where('remaining_stock', '>', 0)
+            ->where('remaining_stock', '>=', 0)
             ->get()
             ->groupBy('product_id');
         // new batches
@@ -36,7 +36,7 @@ class WarehouseInventoryController extends Controller
             ->get()
             ->groupBy('product_id');
 
-        $allProductIds = $carriedForward->keys()
+            $allProductIds = $carriedForward->keys()
             ->merge($newPurchases->keys())
             ->unique();
 
@@ -48,15 +48,15 @@ class WarehouseInventoryController extends Controller
             $product = $carried->first()?->product
                 ?? $newItems->first()?->product;
 
-            $carriedQty    = $carried->sum('remaining_stock'); // carring forward quantity
-            $newQty        = $newItems->sum('quantity'); // new purchases quantity
+            $carriedQty    = $carried->sum('remaining_stock') ; // carring forward quantity
+            $newQty        = $newItems->sum('quantity') - $newItems->sum('returned_quantity'); // new purchases quantity
             $totalAvailable = $carriedQty + $newQty;
             $currentStock  = $carried->sum('remaining_stock') + $newItems->sum('remaining_stock');
 
             $soldFromNew   = $totalAvailable - $currentStock;
-
             return [
                 'product_id'      => $productId,
+                'product_barcode' =>$product?->barcode,
                 'product_name'    => $product?->name,
                 'carried_forward' => $carriedQty,
                 'new_purchases'   => $newQty,

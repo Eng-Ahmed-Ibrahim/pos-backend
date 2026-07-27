@@ -12,14 +12,22 @@ use Illuminate\Http\Request;
 use App\Models\PurchaseItems;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorePuchaseRequest;
+use App\Http\Requests\UpdatePuchaseRequest;
+use App\Models\PurchaseReturn;
+use App\Services\PurchaseService;
 use Illuminate\Support\Facades\Validator;
 
 class PurchaseController extends Controller
 {
+    public function __construct(private PurchaseService $PurchaseService) {}
     public function index(Request $request)
     {
-        $purchases = Purchase::with(['supplier'])->withCount('items')->orderBy("id", "desc")->get();
-
+        $purchases = Purchase::
+        withCount('items')
+        ->with(['supplier'])
+        ->orderBy("id", "desc")
+        ->get();
         return response()->json([
             "status" => true,
             "purchases" => $purchases
@@ -28,10 +36,12 @@ class PurchaseController extends Controller
     public function show(Request $request, $id)
     {
         $purchase = Purchase::with([
-            'supplier',
+            'supplier:id,name',
             'items.product' => function ($q) {
                 $q->withTrashed();
             }
+            ,
+            'items.product.unit:id,name'
         ])->findOrFail($id);
         return response()->json([
             "status" => true,
@@ -44,208 +54,62 @@ class PurchaseController extends Controller
         $suppliers = Helpers::cache_suppliers();
         $sub_categories =  Helpers::cache_sub_categories();
         $products = Helpers::cache_all_products();
+        $units = Helpers::cache_units();
         $data = [
+            'count' => count($products),
+            'size' => strlen(json_encode($products)),
             "categories" => $categories,
             "suppliers" => $suppliers,
             "sub_categories" => $sub_categories,
-            "products" => $products
+            "products" => $products,
+            'units' => $units,
         ];
         return response()->json([
             'status' => true,
             'data' => $data
         ]);
     }
-    public function store(Request $request)
+    public function store(StorePuchaseRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
-            'date' => ['required', 'date'],
-            'image' => 'required|image',
+        $validated = $request->validated();
 
-            // 'invoice_number' => ['nullable', 'string', 'max:255'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'items.*.expire_date' => ['required', 'date'],
-        ], [
-            'supplier_id.required' => 'المورد مطلوب',
-            'date.required' => 'تاريخ الفاتورة مطلوب',
-            'items.required' => 'يجب إضافة صنف واحد على الأقل',
-            'items.min' => 'يجب إضافة صنف واحد على الأقل',
-        ]);
+        try {
+            $purchase = DB::transaction(function () use ($validated, $request) {
+                return $this->PurchaseService->createInvoice($validated, $request->file('image'));
+            });
 
-        if ($validator->fails()) {
+            return response()->json([
+                'status' => true,
+                'message' => 'تم حفظ الفاتورة بنجاح',
+                'data' => $purchase->load('items.product', 'supplier'),
+            ], 201);
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => $validator->errors()->first(),
-                'errors' => $validator->errors(),
+                'message' => $e->getMessage(),
             ], 422);
         }
-
-        $validated = $validator->validated();
-
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
-            $image->move(public_path('uploads/categories'), $imageName);
-
-            $validated['image'] = 'uploads/categories/' . $imageName;
-        }
-        $purchase = DB::transaction(function () use ($validated) {
-            $total = 0;
-            foreach ($validated['items'] as $item) {
-                $total += $item['quantity'] * $item['price'];
-            }
-
-            $purchase = Purchase::create([
-                'supplier_id' => $validated['supplier_id'],
-                // 'invoice_number' => $validated['invoice_number'] ?? null,
-                'date' => $validated['date'],
-                'total' => $total,
-                'image' => $validated['image']
-            ]);
-
-            foreach ($validated['items'] as $item) {
-                $total = $item['quantity'] * $item['price'];
-
-                PurchaseItems::create([
-                    'purchase_id' => $purchase->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'remaining_stock' => $item['quantity'],
-                    'price' => $item['price'],
-                    'total' => $total,
-                    "expire_date" => $item['expire_date']
-                ]);
-            }
-            Helpers::delete_products();
-            return $purchase;
-        });
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم حفظ الفاتورة بنجاح',
-            'data' => $purchase->load('items.product', 'supplier'),
-        ], 201);
     }
-    public function update(Request $request, $id)
+    public function update(UpdatePuchaseRequest $request, $id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
+        $validated = $request->validated();
+        try {
+            $purchase = DB::transaction(function () use ($purchase, $validated, $request) {
+                return $this->PurchaseService->updateInvoiceItems($purchase, $validated, $request->file('image'));
+            });
 
-        $validator = Validator::make($request->all(), [
-            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
-            'date' => ['required', 'date'],
-            'image' => ['nullable', 'image', 'mimes:jpg,png,jpeg'],
-            'notes' => ['nullable', 'string', 'max:255'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'items.*.expire_date' => ['required', 'date'],
-        ], [
-            'supplier_id.required' => 'المورد مطلوب',
-            'date.required' => 'تاريخ الفاتورة مطلوب',
-            'items.required' => 'يجب إضافة صنف واحد على الأقل',
-            'items.min' => 'يجب إضافة صنف واحد على الأقل',
-        ]);
-
-        if ($validator->fails()) {
+            return response()->json([
+                'status' => true,
+                'message' => 'تم تحديث الفاتورة بنجاح',
+                'data' => $purchase->load('items.product', 'supplier'),
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => $validator->errors()->first(),
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => $e->getMessage(),
+            ], 422); 
         }
-
-        $validated = $validator->validated();
-
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
-            $image->move(public_path('uploads/categories'), $imageName);
-            $validated['image'] = 'uploads/categories/' . $imageName;
-
-            if ($purchase->image && file_exists(public_path($purchase->image))) {
-                @unlink(public_path($purchase->image));
-            }
-        }   
-
-        $purchase = DB::transaction(function () use ($purchase, $validated) {
-
-            $oldItemsMap = $purchase->items->keyBy('product_id');
-
-            $newItemsMap = collect($validated['items'])->keyBy('product_id');
-
-            foreach ($oldItemsMap as $productId => $oldItem) {
-
-                if ($newItemsMap->has($productId)) {
-                    $newItem = $newItemsMap[$productId];
-                    $qtyDiff = $newItem['quantity'] - $oldItem->quantity;
-
-                    $newRemaining = $oldItem->remaining_stock + $qtyDiff;
-
-                    if ($newRemaining < 0) {
-                        throw new \Exception("لا يمكن تقليل الكمية، تم بيع جزء منها بالفعل");
-                    }
-
-                    $product = Product::find($productId);
-                    if ($qtyDiff > 0) {
-                        $product->increment('stock', $qtyDiff);
-                    } elseif ($qtyDiff < 0) {
-                        $product->decrement('stock', abs($qtyDiff));
-                    }
-
-                    $oldItem->update([
-                        'quantity'        => $newItem['quantity'],
-                        'remaining_stock' => $newRemaining,
-                        'price'           => $newItem['price'],
-                        'total'           => $newItem['quantity'] * $newItem['price'],
-                        'expire_date'     => $newItem['expire_date'],
-                    ]);
-                } else {
-                    if ($oldItem->remaining_stock < $oldItem->quantity) {
-                        throw new \Exception("لا يمكن حذف \"{$oldItem->product->name}\" لأنه تم بيع جزء منه");
-                    }
-                    Product::find($productId)?->decrement('stock', $oldItem->quantity);
-                    $oldItem->delete();
-                }
-            }
-
-            foreach ($newItemsMap as $productId => $newItem) {
-                if (!$oldItemsMap->has($productId)) {
-                    PurchaseItems::create([
-                        'purchase_id'     => $purchase->id,
-                        'product_id'      => $productId,
-                        'quantity'        => $newItem['quantity'],
-                        'remaining_stock' => $newItem['quantity'],
-                        'price'           => $newItem['price'],
-                        'total'           => $newItem['quantity'] * $newItem['price'],
-                        'expire_date'     => $newItem['expire_date'],
-                    ]);
-
-                    Product::find($productId)?->increment('stock', $newItem['quantity']);
-                }
-            }
-
-            $total = collect($validated['items'])->sum(fn($i) => $i['quantity'] * $i['price']);
-
-            $purchase->update([
-                'supplier_id' => $validated['supplier_id'],
-                'date'        => $validated['date'],
-                'notes'       => $validated['notes'] ?? $purchase->notes,
-                'total'       => $total,
-                'image'       => $validated['image'] ?? $purchase->image,
-            ]);
-
-            return $purchase;
-        });
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم تحديث الفاتورة بنجاح',
-            'data' => $purchase->load('items.product', 'supplier'),
-        ], 200);
     }
     public function destroy($id)
     {
@@ -254,5 +118,101 @@ class PurchaseController extends Controller
         return response()->json([
             "status" => true
         ]);
+    }
+
+
+
+    public function storeReturn(Request $request, $id)
+    {
+        $purchase = Purchase::with('items')->find($id);
+        if (!$purchase) {
+            return response()->json(['status' => false, 'message' => 'الفاتورة غير موجودة'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reason' => ['nullable', 'string', 'max:255'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.purchase_item_id' => ['required', 'integer', 'exists:purchase_items,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+        ], [
+            'items.required' => 'يجب اختيار صنف واحد على الأقل',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $data = $validator->validated();
+
+        try {
+            $purchaseReturn = DB::transaction(function () use ($data, $purchase) {
+                $total = 0;
+                $lines = [];
+
+                foreach ($data['items'] as $row) {
+                    // lockForUpdate عشان تمنع race condition لو في عملية بيع أو إرجاع تانية بتحصل في نفس اللحظة
+                    $item = PurchaseItems::where('id', $row['purchase_item_id'])
+                        ->where('purchase_id', $purchase->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$item) {
+                        throw new \Exception('صنف غير تابع لهذه الفاتورة');
+                    }
+
+                    if ($row['quantity'] > $item->remaining_stock) {
+                        throw new \Exception("الكمية المطلوب إرجاعها أكبر من المتاح للمنتج: {$item->product->name}");
+                    }
+
+                    $lineTotal = $row['quantity'] * $item->price;
+                    $total += $lineTotal;
+
+                    $item->decrement('remaining_stock', $row['quantity']);
+                    $item->increment('returned_quantity', $row['quantity']);
+
+                    $lines[] = [
+                        'purchase_item_id' => $item->id,
+                        'quantity' => $row['quantity'],
+                        'price' => $item->price,
+                        'total' => $lineTotal,
+                    ];
+                }
+
+                $purchaseReturn = PurchaseReturn::create([
+                    'purchase_id' => $purchase->id,
+                    'total' => $total,
+                    'reason' => $data['reason'] ?? null,
+                ]);
+
+                foreach ($lines as $line) {
+                    $purchaseReturn->items()->create($line);
+                }
+
+                // تحديث حالة الفاتورة
+                $purchase->refresh();
+                $allReturned = $purchase->items->every(fn($i) => $i->remaining_stock == 0);
+                $anyReturned = $purchase->items->some(fn($i) => $i->returned_quantity > 0)
+                    ?? $purchase->items->contains(fn($i) => $i->returned_quantity > 0);
+
+                $purchase->update([
+                    'status' => $allReturned ? 'returned' : ($anyReturned ? 'partially_returned' : 'completed'),
+                ]);
+
+                Helpers::delete_products(); // نفس اللي بتعمله في store() عشان تحدّث أي cache
+
+                return $purchaseReturn;
+            });
+        } catch (\Exception $e) {
+            return response()->json(['status' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم تنفيذ إرجاع المشتريات بنجاح',
+            'data' => ['sale' => $purchase->fresh()->load('items.product', 'supplier')],
+        ], 201);
     }
 }

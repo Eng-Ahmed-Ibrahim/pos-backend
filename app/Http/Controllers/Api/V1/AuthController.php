@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Helpers\Helpers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -53,12 +54,37 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
-        $settings = Helpers::cache_settings();
-        return response()->json([
-            'user' => $user,
-            'permissions' => $user->getAllPermissions()->pluck('name'),
-            'roles' => $user->getRoleNames(),
-            'settings'=> $settings
-        ]);
+
+        $data = Cache::remember(
+            "user_data_{$user->id}",
+            3600,
+            function () use ($user) {
+
+                $user->load([
+                    'roles.permissions'
+                ]);
+
+                return [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ],
+
+                    'permissions' => $user->getAllPermissions()
+                        ->pluck('name')
+                        ->values()
+                        ->toArray(),
+
+                    'roles' => $user->getRoleNames()
+                        ->values()
+                        ->toArray(),
+
+                    'settings' => Helpers::cache_settings()
+                ];
+            }
+        );
+
+        return response()->json($data);
     }
 }

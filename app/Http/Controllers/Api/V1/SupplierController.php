@@ -100,6 +100,13 @@ class SupplierController extends Controller
                 'message' => 'Supplier not found',
             ], 404);
         }
+        if($supplier->purchases()->exists()){
+            return response()->json([
+                "status"=>false,
+                "message"=>"لا يمكن حذف المورد لان لديه مشتريات مرتبطه به"
+            ]);
+        }
+
 
         $supplier->delete();
         Helpers::delete_suppliers();

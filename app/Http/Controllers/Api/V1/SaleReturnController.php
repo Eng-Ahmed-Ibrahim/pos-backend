@@ -14,13 +14,13 @@ use Illuminate\Support\Facades\Validator;
 class SaleReturnController extends Controller
 {
 
-    public function showSale( $id)
+    public function showSale($id)
     {
         $sale = Sale::find($id);
         if (!$sale) {
             return response()->json([
                 'status' => false,
-                "message"=>"لا يوجد فاتوره بهذا الرقم"
+                "message" => "لا يوجد فاتوره بهذا الرقم"
             ]);
         }
         $sale->load(['items.product']);
@@ -61,9 +61,9 @@ class SaleReturnController extends Controller
                 foreach ($request->input('items') as $row) {
                     $saleItem = SaleItems::where('sale_id', $sale->id)
                         ->where('id', $row['sale_item_id'])
+                        ->with('batches')
                         ->lockForUpdate()
                         ->firstOrFail();
-
                     $remaining = $saleItem->quantity - $saleItem->returned_quantity;
                     $qty = (int) $row['quantity'];
 
@@ -72,7 +72,28 @@ class SaleReturnController extends Controller
                             "الكمية المطلوب إرجاعها أكبر من المتاح للصنف ({$saleItem->product_id}) - المتاح: {$remaining}"
                         );
                     }
+                    $remainingToReturn = $qty;
 
+                    foreach ($saleItem->batches as $batch) {
+
+                        if ($remainingToReturn <= 0) {
+                            break;
+                        }
+
+                        $availableToReturn = $batch->qty - $batch->returned_qty;
+
+                        if ($availableToReturn <= 0) {
+                            continue;
+                        }
+
+                        $returnedQty = min($availableToReturn, $remainingToReturn);
+
+                        $batch->purchaseItem()->increment('remaining_stock', $returnedQty);
+
+                        $batch->increment('returned_qty', $returnedQty);
+                        $batch->purchaseItem()->decrement('total_sold',$returnedQty);
+                        $remainingToReturn -= $returnedQty;
+                    }
                     $lineTotal = $qty * (float) $saleItem->price;
                     $totalAmount += $lineTotal;
 
@@ -85,26 +106,22 @@ class SaleReturnController extends Controller
                         'total' => $lineTotal,
                     ]);
 
-                    // تحديث الكمية المرتجعة وحالة الصنف
                     $saleItem->returned_quantity += $qty;
+                    $saleItem->total =($saleItem->quantity - $saleItem->returned_quantity) * $saleItem->price;
+                    
                     $saleItem->status = $saleItem->returned_quantity >= $saleItem->quantity
                         ? 'returned'
                         : 'partially_returned';
                     $saleItem->save();
-
-                    // إرجاع الكمية لمخزون المنتج
-                    $product = $saleItem->product()->lockForUpdate()->first();
-             
                 }
 
                 $saleReturn->update(['total_amount' => $totalAmount]);
 
-                // تحديث حالة الفاتورة ككل بناءً على حالة كل أصنافها
+                $sale->decrement('total', $totalAmount);
                 $sale->refresh();
                 $allItems = $sale->items()->get();
                 $allReturned = $allItems->every(fn($i) => $i->returned_quantity >= $i->quantity);
                 $anyReturned = $allItems->contains(fn($i) => $i->returned_quantity > 0);
-
                 if ($allReturned) {
                     $sale->status = 'returned';
                 } elseif ($anyReturned) {

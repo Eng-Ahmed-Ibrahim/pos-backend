@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItems;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Validator;
 
 class ReportsController extends Controller
 {
@@ -43,13 +45,13 @@ class ReportsController extends Controller
         $grandTotal = (float) $query->sum('total');
 
         $reports = (clone $query)
-            ->with('product:id,name')
+            ->with(['product:id,name,price','batches'])
             ->selectRaw('
                     product_id,
                     SUM(quantity) as total_quantity,
                     SUM(total) as total_sales
                 ')
-                ->orderBy("total_quantity","DESC")
+            ->orderBy("total_quantity", "DESC")
             ->groupBy('product_id')
             ->paginate(15);
 
@@ -67,6 +69,45 @@ class ReportsController extends Controller
                 'per_page'     => $reports->perPage(),
                 'total'        => $reports->total(),
             ],
+        ]);
+    }
+
+    public function cashier_reports(Request $request)
+    {
+        $validatedData = $request->validate([
+            "user_id" => "nullable|exists:users,id",
+            "from"    => "nullable|date",
+            "to"      => "nullable|date"
+        ]);
+
+        
+        $query = Sale::query();
+
+        if (!empty($validatedData['user_id']))
+            $query->where("user_id", $validatedData['user_id']);
+
+        if (!empty($validatedData['from']) &&  !empty($validatedData['to'])) {
+            $query->whereBetween('created_at', [
+                Carbon::parse($validatedData['from'])->startOfDay(),
+                Carbon::parse($validatedData['to'])->endOfDay()
+            ]);
+        }
+        $total_price = (clone $query)->sum('total');
+        $sales = $query
+            ->with(['user:id,name','items:id,sale_id,product_id,quantity,price,total','items.product:id,name'])
+            ->select('id', 'user_id', 'total', 'amount_paid', 'status', 'created_at')
+            ->latest()
+            ->get();
+        $cashiers = User::role('cashier')
+            ->select('id', 'name')
+            ->get();
+        return response()->json([
+            "data" => [
+                "sales" => $sales,
+                'total_price' => $total_price,
+                'cashiers'=>$cashiers
+            ],
+            "status" => true
         ]);
     }
 }

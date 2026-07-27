@@ -17,4 +17,8 @@ class SaleItems extends Model
     {
         return $this->belongsTo(Sale::class);
     }
+    public function batches()
+    {
+        return $this->hasMany(saleItemBatches::class);
+    }
 }

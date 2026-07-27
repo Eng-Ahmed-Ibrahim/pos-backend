@@ -18,6 +18,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(UserSeeder::class);
-        DB::statement('ALTER TABLE purchases AUTO_INCREMENT = 1000');
+        // DB::statement('ALTER TABLE purchases AUTO_INCREMENT = 1000');
     }
 }
