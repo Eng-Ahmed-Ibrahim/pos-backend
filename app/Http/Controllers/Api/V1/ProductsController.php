@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Helpers\Helpers;
-use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\Product;
+use App\Helpers\Helpers;
+use App\Models\Category;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Requests\StoreProductRequest;
 
 class ProductsController extends Controller
 {
@@ -62,48 +63,9 @@ class ProductsController extends Controller
     /**
      * POST /api/v1/products
      */
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'barcode' => 'required|string|unique:products,barcode',
-            'category_id' => 'required|exists:categories,id',
-            'sub_category_id' => 'nullable|exists:sub_categories,id',
-            'minimum_stock' => 'nullable|integer',
-            'price' => 'nullable|decimal:0,3',
-            'unit_id' => 'required|integer|exists:units,id',
-        ], [
-            'name.required' => 'اسم المنتج مطلوب.',
-            'name.string' => 'اسم المنتج يجب أن يكون نصًا.',
-            'name.max' => 'اسم المنتج يجب ألا يزيد عن 255 حرفًا.',
-
-            'barcode.required' => 'الباركود مطلوب.',
-            'barcode.string' => 'الباركود يجب أن يكون نصًا.',
-            'barcode.unique' => 'الباركود موجود بالفعل.',
-
-            'category_id.required' => 'التصنيف مطلوب.',
-            'category_id.exists' => 'التصنيف المحدد غير موجود.',
-
-            'sub_category_id.exists' => 'التصنيف الفرعي المحدد غير موجود.',
-
-            'minimum_stock.integer' => 'الحد الأدنى للمخزون يجب أن يكون رقمًا صحيحًا.',
-
-            'price.integer' => 'السعر يجب أن يكون رقمًا صحيحًا.',
-
-            'unit_id.required' => 'الوحدة مطلوبة.',
-            'unit_id.integer' => 'الوحدة المحددة غير صحيحة.',
-            'unit_id.exists' => 'الوحدة المحددة غير موجودة.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors(),
-                'message' => $validator->errors()->first()
-            ], 422);
-        }
-
-        $product = Product::create($validator->validated());
+        $product = Product::create($request->validated());
         Helpers::delete_products();
         Helpers::delete_all_products();
         return response()->json([

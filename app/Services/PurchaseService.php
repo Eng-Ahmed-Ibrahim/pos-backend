@@ -41,7 +41,7 @@ class PurchaseService
         return $this->updatePurchase($purchase, $validated, $total);
     }
 
-    private function calculateTotalInvoicePrice(array $items): float
+    public function calculateTotalInvoicePrice(array $items): float
     {
         return collect($items)->sum(function ($item) {
             return $item['quantity'] * $item['price'];
