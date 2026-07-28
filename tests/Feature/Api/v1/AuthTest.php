@@ -44,7 +44,6 @@ class AuthTest extends TestCase
             'email' => $user->email,
             'password' => 'password',
         ]);
-        // ci/cd 
         $response->assertStatus(200)
         ->assertJsonStructure([
             'token',
