@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class PointOfSaleTest extends TestCase
 {
+    
     use RefreshDatabase;
     public function test_sale_without_authenticated()
     {
