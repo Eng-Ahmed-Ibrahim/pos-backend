@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use Exception;
+use App\Models\Sale;
 use App\Models\Product;
 use App\Models\PurchaseItems;
-use App\Models\Sale;
-use Exception;
 
 class SalesService
 {
@@ -14,7 +14,7 @@ class SalesService
     {
 
         $sale  = $this->add_sale($validated, $user);
-        [$products, $productIds] = $this->get_products($validated);
+        [$products, $productIds] = $this->get_products($validated['items']);
         $allBatches = $this->get_batches($productIds);
         [$saleItemBatchesData, $saleItemsData] = $this->salesItems($validated, $products, $allBatches);
         $this->add_sale_batches($saleItemsData,$sale,$saleItemBatchesData);
@@ -33,9 +33,9 @@ class SalesService
             'user_id' => $user->id
         ]);
     }
-    private function get_products(array $validated): array
+    private function get_products(array $items): array
     {
-        $productIds = collect($validated['items'])
+        $productIds = collect($items)
             ->pluck('product_id')
             ->unique();
 

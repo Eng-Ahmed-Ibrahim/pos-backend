@@ -4,11 +4,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\RolesController;
 use App\Http\Controllers\Api\V1\UsersController;
+use App\Http\Controllers\Api\v1\WasteController;
 use App\Http\Controllers\Api\V1\ReportsController;
 use App\Http\Controllers\Api\V1\CategoryController;
-use App\Http\Controllers\Api\v1\FinancialReportController;
 use App\Http\Controllers\Api\V1\ProductsController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\SettingsController;
@@ -16,20 +17,19 @@ use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\SaleReturnController;
 use App\Http\Controllers\Api\V1\SubCategoryController;
 use App\Http\Controllers\Api\V1\ProductImportController;
-use App\Http\Controllers\Api\V1\UnitController;
+use App\Http\Controllers\Api\v1\FinancialReportController;
 use App\Http\Controllers\Api\V1\WarehouseInventoryController;
-use App\Http\Controllers\Api\v1\WasteController;
 
 Route::prefix('v1')->group(function () {
-    Route::post('/products/import', [ProductImportController::class, 'import']);
-
+    
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login'])->name('login');
-
+    
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         
+        Route::post('/products/import', [ProductImportController::class, 'import']);
         Route::get('/wastes', [WasteController::class, 'index']);
         Route::post('/wastes', [WasteController::class, 'store']);
         Route::apiResource('categories', CategoryController::class);
@@ -62,8 +62,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [FinancialReportController::class, 'summary']);
             Route::get('/products', [FinancialReportController::class, 'products']);
         });
+        Route::get('sales', [SaleController::class, 'index']);
+        Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
+        Route::get('cashier-reports', [ReportsController::class, 'cashier_reports']);
     });
-    Route::get('sales', [SaleController::class, 'index']);
-    Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
-    Route::get('cashier-reports', [ReportsController::class, 'cashier_reports']);
 });

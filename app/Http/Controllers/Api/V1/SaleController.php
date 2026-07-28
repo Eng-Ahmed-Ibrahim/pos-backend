@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use Exception;
 use App\Models\Sale;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Models\PurchaseItems;
+use App\Services\SalesService;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSaleRequest;
-use App\Services\SalesService;
-use Exception;
 use Illuminate\Support\Facades\Validator;
 
 class SaleController extends Controller
@@ -46,10 +46,6 @@ class SaleController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم إتمام عملية البيع بنجاح',
-            'data' => $sale->load([
-                'items.product',
-                'items.batches'
-            ]),
         ], 201);
     }
 
