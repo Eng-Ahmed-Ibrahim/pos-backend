@@ -33,11 +33,17 @@ class ProductsController extends Controller
                     ->orWhere('barcode', 'like', "%{$request->search}%");
             });
         }
-
-        $products = $query
-        ->with(['category', 'sub_category', 'unit'])
-        ->withSum('purchaseItems','remaining_stock')
-        ->orderBy("price", "DESC")->paginate(15);
+$products = $query
+    ->with(['category', 'sub_category', 'unit'])
+    ->withSum([
+        'purchaseItems as purchase_items_sum_remaining_stock' => function ($q) {
+            $q->whereHas('purchase', function ($q) {
+                $q->whereNotIn('status', ['cancelled', 'rejected']);
+            });
+        }
+    ], 'remaining_stock')
+    ->orderBy('price', 'DESC')
+    ->paginate(15);
 
         $categories = Helpers::cache_categories();
         $sub_categories = Helpers::cache_sub_categories();

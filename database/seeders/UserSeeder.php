@@ -38,6 +38,7 @@ class UserSeeder extends Seeder
                     "display_name" => "إرجاع مبيعات",
                 ],
             ],
+
             "invoices" => [
                 [
                     "name" => "view",
@@ -55,6 +56,14 @@ class UserSeeder extends Seeder
                     "name" => "edit",
                     "display_name" => "تعديل فاتوره",
                 ],
+                [
+                    "name" => "view_returend",
+                    "display_name" => "عرض مرتجعات المشتريات"
+                ],
+                [
+                    "name" => "view_wasteed",
+                    "display_name" => "عرض الهالك"
+                ]
             ],
 
             "suppliers" => [
@@ -73,6 +82,25 @@ class UserSeeder extends Seeder
                 [
                     "name" => "edit",
                     "display_name" => "تعديل مورد",
+                ],
+            ],
+            
+            "reports" => [
+                [
+                    "name" => "view_sales_products",
+                    "display_name" => "عرض تقرير المبيعات",
+                ],
+                [
+                    "name" => "view_sales_cashier",
+                    "display_name" => "عرض تقرير الكاشير",
+                ],
+                [
+                    "name" => "view_warehouse_inventory",
+                    "display_name" => "عرض جرد المخزن",
+                ],
+                [
+                    "name" => "view_financial",
+                    "display_name" => "عرض تقرير الماليات",
                 ],
             ],
 
@@ -178,25 +206,12 @@ class UserSeeder extends Seeder
                     "display_section" => "الأدوار والصلاحيات",
                 ],
             ],
-            'reports'=>[
-                                [
-                    "name" => "view",
-                    "display_name" => "عرض التقارير",
-                    "display_section" => "التقارير",
-                ],
-            ],
-            'settings'=>[
-                                [
+
+            'settings' => [
+                [
                     "name" => "view",
                     "display_name" => "عرض الاعدادات",
                     "display_section" => "الاعدادات",
-                ],
-            ],
-            'sales'=>[
-                                [
-                    "name" => "view",
-                    "display_name" => "عرض المبيعات",
-                    "display_section" => "المبيعات",
                 ],
             ],
 
@@ -229,7 +244,7 @@ class UserSeeder extends Seeder
         }
 
         // Give All Permissions To Admin
-                $adminRole->syncPermissions(
+        $adminRole->syncPermissions(
             Permission::where('guard_name', 'web')->get()
         );
         $users = [
