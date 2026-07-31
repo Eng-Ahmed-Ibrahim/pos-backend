@@ -50,6 +50,10 @@ Route::prefix('v1')->group(function () {
         Route::post('sales', [SaleController::class, 'store']);
         Route::get('sales/{id}', [SaleController::class, 'show']);
 
+        Route::get('purchase/return', [SaleReturnController::class, 'index']);
+    Route::get('purchase/return/products', [SaleReturnController::class, 'products']);
+    Route::post('purchase/return', [SaleReturnController::class, 'store']);
+
         Route::get('sales/{id}', [SaleReturnController::class, 'showSale']);
         Route::post('sales/{sale}/return', [SaleReturnController::class, 'store']);
 

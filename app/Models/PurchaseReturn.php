@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseReturn extends Model
 {
-    protected $fillable = ['purchase_id', 'total', 'reason'];
+    protected $fillable = ['purchase_id', 'total_amount', 'reason','supplier_id'];
 
     public function purchase()
     {

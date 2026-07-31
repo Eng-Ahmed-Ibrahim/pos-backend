@@ -1,152 +1,242 @@
 <?php
-// app/Http/Controllers/Api/V1/SaleReturnController.php
-namespace App\Http\Controllers\Api\V1;
 
-use App\Models\Sale;
-use App\Models\SaleItems;
-use App\Models\SaleReturn;
-use Illuminate\Http\Request;
-use App\Models\SaleReturnItems;
-use Illuminate\Support\Facades\DB;
+namespace App\Http\Controllers\Api\v1;
+
 use App\Http\Controllers\Controller;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\PurchaseItems;
+use App\Models\PurchaseReturn;
+use App\Models\PurchaseReturnItem;
+use App\Models\Supplier;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SaleReturnController extends Controller
 {
-
-    public function showSale($id)
+    /**
+     * GET /api/v1/purchase/return
+     * بيانات الصفحة الأساسية: الموردين + الأقسام
+     */
+    public function index()
     {
-        $sale = Sale::find($id);
-        if (!$sale) {
-            return response()->json([
-                'status' => false,
-                "message" => "لا يوجد فاتوره بهذا الرقم"
-            ]);
-        }
-        $sale->load(['items.product']);
+        $suppliers = Supplier::select('id', 'name', 'phone')
+            ->orderBy('name')
+            ->get();
+
+        $categories = Category::select('id', 'name', 'image')
+            ->orderBy('name')
+            ->get();
+
         return response()->json([
-            'status' => true,
-            'data' => ['sale' => $sale],
+            'status'     => true,
+            'suppliers'  => $suppliers,
+            'categories' => $categories,
         ]);
     }
 
-
-    public function store(Request $request, Sale $sale)
+    /**
+     * GET /api/v1/purchase/return/products
+     * منتجات مورد معيّن (فلترة بالقسم + بحث بالاسم/الباركود)
+     */
+    public function products(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'reason' => 'nullable|string|max:1000',
-            'items' => 'required|array|min:1',
-            'items.*.sale_item_id' => 'required|integer|exists:sale_items,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'search'      => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => $validator->errors()->first(),
             ], 422);
         }
 
+        $supplierId = $request->supplier_id;
+        $categoryId = $request->category_id;
+        $search     = trim((string) $request->search);
+
+        // المتاح للإرجاع = مجموع remaining_stock من كل purchase_items
+        // بتاعت فواتير المورد ده (نفس عمود remaining_stock المستخدم في مرتجع المبيعات)
+        $query = PurchaseItems::query()
+            ->select(
+                'products.id as product_id',
+                'products.name as product_name',
+                'products.barcode as product_barcode',
+                'products.category_id as category_id',
+                DB::raw('SUM(purchase_items.remaining_stock) as available_qty'),
+                DB::raw('MAX(purchase_items.price) as last_price')
+            )
+            ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
+            ->join('products', 'products.id', '=', 'purchase_items.product_id')
+            ->where('purchases.supplier_id', $supplierId)
+            ->where('purchase_items.remaining_stock', '>', 0)
+            ->groupBy('products.id', 'products.name', 'products.barcode', 'products.category_id')
+            ->having('available_qty', '>', 0);
+
+        if ($categoryId) {
+            $query->where('products.category_id', $categoryId);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('products.name', 'like', "%{$search}%")
+                  ->orWhere('products.barcode', 'like', "%{$search}%");
+            });
+        }
+
+        $products = $query->orderBy('products.name')->paginate(30);
+
+        return response()->json([
+            'status'   => true,
+            'products' => $products,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/purchase/return
+     *
+     * Body:
+     * {
+     *   "supplier_id": 1,
+     *   "reason": "منتج تالف",
+     *   "items": [
+     *      { "product_id": 5, "quantity": 3 }
+     *   ]
+     * }
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'supplier_id'        => 'required|exists:suppliers,id',
+            'reason'             => 'nullable|string|max:1000',
+            'items'              => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.quantity'   => 'required|numeric|min:0.001',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $supplierId = $request->supplier_id;
+
         try {
-            $saleReturn = DB::transaction(function () use ($request, $sale) {
-                $saleReturn = SaleReturn::create([
-                    'sale_id' => $sale->id,
-                    'user_id' => $request->user()?->id,
-                    'reason' => $request->input('reason'),
+            $purchaseReturn = DB::transaction(function () use ($request, $supplierId) {
+                $purchaseReturn = PurchaseReturn::create([
+                    'supplier_id'  => $supplierId,
+                    'user_id'      => $request->user()?->id,
+                    'reason'       => $request->input('reason'),
                     'total_amount' => 0,
                 ]);
 
                 $totalAmount = 0;
+                $affectedPurchaseIds = [];
 
                 foreach ($request->input('items') as $row) {
-                    $saleItem = SaleItems::where('sale_id', $sale->id)
-                        ->where('id', $row['sale_item_id'])
-                        ->with('batches')
-                        ->lockForUpdate()
-                        ->firstOrFail();
-                    $remaining = $saleItem->quantity - $saleItem->returned_quantity;
-                    $qty = (int) $row['quantity'];
+                    $productId = (int) $row['product_id'];
+                    $qty       = (float) $row['quantity'];
 
-                    if ($qty > $remaining) {
+                    // كل الدفعات (purchase_items) المتاحة للمنتج ده من المورد ده
+                    // LIFO: أحدث دفعة الأول - عدّل orderBy لو المفروض FIFO
+                    $batches = PurchaseItems::query()
+                        ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
+                        ->where('purchases.supplier_id', $supplierId)
+                        ->where('purchase_items.product_id', $productId)
+                        ->where('purchase_items.remaining_stock', '>', 0)
+                        ->orderByDesc('purchase_items.created_at')
+                        ->select('purchase_items.*')
+                        ->lockForUpdate()
+                        ->get();
+
+                    $available = $batches->sum('remaining_stock');
+
+                    if ($qty > $available) {
                         throw new \Exception(
-                            "الكمية المطلوب إرجاعها أكبر من المتاح للصنف ({$saleItem->product_id}) - المتاح: {$remaining}"
+                            "الكمية المطلوب إرجاعها للمنتج رقم {$productId} أكبر من المتاح ({$available})"
                         );
                     }
+
                     $remainingToReturn = $qty;
 
-                    foreach ($saleItem->batches as $batch) {
-
+                    foreach ($batches as $batch) {
                         if ($remainingToReturn <= 0) {
                             break;
                         }
 
-                        $availableToReturn = $batch->qty - $batch->returned_qty;
+                        $deductFromThisBatch = min($batch->remaining_stock, $remainingToReturn);
 
-                        if ($availableToReturn <= 0) {
-                            continue;
-                        }
+                        // خصم من الدفعة + تحديث حالة الفاتورة الأصلية
+                        $batch->decrement('remaining_stock', $deductFromThisBatch);
+                        $batch->returned_quantity = ($batch->returned_quantity ?? 0) + $deductFromThisBatch;
+                        $batch->status = $batch->returned_quantity >= $batch->quantity
+                            ? 'returned'
+                            : 'partial';
+                        $batch->save();
 
-                        $returnedQty = min($availableToReturn, $remainingToReturn);
+                        $lineTotal = $deductFromThisBatch * (float) $batch->price;
+                        $totalAmount += $lineTotal;
 
-                        $batch->purchaseItem()->increment('remaining_stock', $returnedQty);
+                        PurchaseReturnItem::create([
+                            'purchase_return_id' => $purchaseReturn->id,
+                            'purchase_item_id'   => $batch->id,
+                            'product_id'         => $productId,
+                            'quantity'           => $deductFromThisBatch,
+                            'price'              => $batch->price,
+                            'total'              => $lineTotal,
+                        ]);
 
-                        $batch->increment('returned_qty', $returnedQty);
-                        $batch->purchaseItem()->decrement('total_sold',$returnedQty);
-                        $remainingToReturn -= $returnedQty;
+                        $affectedPurchaseIds[$batch->purchase_id] = true;
+                        $remainingToReturn -= $deductFromThisBatch;
                     }
-                    $lineTotal = $qty * (float) $saleItem->price;
-                    $totalAmount += $lineTotal;
-
-                    SaleReturnItems::create([
-                        'sale_return_id' => $saleReturn->id,
-                        'sale_item_id' => $saleItem->id,
-                        'product_id' => $saleItem->product_id,
-                        'quantity' => $qty,
-                        'price' => $saleItem->price,
-                        'total' => $lineTotal,
-                    ]);
-
-                    $saleItem->returned_quantity += $qty;
-                    $saleItem->total =($saleItem->quantity - $saleItem->returned_quantity) * $saleItem->price;
-                    
-                    $saleItem->status = $saleItem->returned_quantity >= $saleItem->quantity
-                        ? 'returned'
-                        : 'partially_returned';
-                    $saleItem->save();
                 }
 
-                $saleReturn->update(['total_amount' => $totalAmount]);
+                $purchaseReturn->update(['total_amount' => $totalAmount]);
 
-                $sale->decrement('total', $totalAmount);
-                $sale->refresh();
-                $allItems = $sale->items()->get();
-                $allReturned = $allItems->every(fn($i) => $i->returned_quantity >= $i->quantity);
-                $anyReturned = $allItems->contains(fn($i) => $i->returned_quantity > 0);
-                if ($allReturned) {
-                    $sale->status = 'returned';
-                } elseif ($anyReturned) {
-                    $sale->status = 'partially_returned';
+                // تحديث حالة كل فاتورة مشتريات اتأثرت
+                foreach (array_keys($affectedPurchaseIds) as $purchaseId) {
+                    $this->refreshPurchaseStatus($purchaseId);
                 }
-                $sale->save();
 
-                return $saleReturn;
+                return $purchaseReturn;
             });
         } catch (\Throwable $e) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => $e->getMessage() ?: 'فشلت عملية الإرجاع',
             ], 422);
         }
 
-        $sale->load(['items.product']);
-
         return response()->json([
-            'status' => true,
-            'message' => 'تم تنفيذ الإرجاع بنجاح',
-            'data' => [
-                'sale' => $sale,
-                'sale_return' => $saleReturn->load('items'),
+            'status'  => true,
+            'message' => 'تم تنفيذ إرجاع المشتريات بنجاح',
+            'data'    => [
+                'purchase_return' => $purchaseReturn->load('items'),
             ],
         ]);
+    }
+
+    private function refreshPurchaseStatus(int $purchaseId): void
+    {
+        $items = PurchaseItems::where('purchase_id', $purchaseId)->get();
+
+        $totalQty      = $items->sum('quantity');
+        $totalReturned = $items->sum('returned_quantity');
+
+        if ($totalReturned <= 0) {
+            $status = 'completed';
+        } elseif ($totalReturned >= $totalQty) {
+            $status = 'returned';
+        } else {
+            $status = 'partial';
+        }
+
+        DB::table('purchases')->where('id', $purchaseId)->update(['status' => $status]);
     }
 }

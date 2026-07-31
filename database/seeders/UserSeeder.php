@@ -273,5 +273,10 @@ class UserSeeder extends Seeder
 
             $user->assignRole($data['role']);
         }
+               $units = [
+            ['name' => 'كجم', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'عدد', 'created_at' => now(), 'updated_at' => now()],
+        ];
+        DB::table('units')->insert($units);
     }
 }
