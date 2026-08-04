@@ -92,10 +92,11 @@ class ReportsController extends Controller
                 Carbon::parse($validatedData['to'])->endOfDay()
             ]);
         }
-        $total_price = (clone $query)->sum('total');
+        $total_cash_price = (clone $query)->where("payment_method",'cash')->sum('total');
+        $total_visa_price = (clone $query)->where("payment_method",'visa')->sum('total');
         $sales = $query
             ->with(['user:id,name','items:id,sale_id,product_id,quantity,price,total','items.product:id,name'])
-            ->select('id', 'user_id', 'total', 'amount_paid', 'status', 'created_at')
+            ->select('id', 'user_id','payment_method', 'total', 'amount_paid', 'status', 'created_at')
             ->latest()
             ->get();
         $cashiers = User::role('cashier')
@@ -104,7 +105,8 @@ class ReportsController extends Controller
         return response()->json([
             "data" => [
                 "sales" => $sales,
-                'total_price' => $total_price,
+                'total_cash_price' => $total_cash_price,
+                'total_visa_price' => $total_visa_price,
                 'cashiers'=>$cashiers
             ],
             "status" => true

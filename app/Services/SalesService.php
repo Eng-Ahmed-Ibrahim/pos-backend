@@ -30,7 +30,8 @@ class SalesService
             'customer_name' => $validated['customer_name'] ?? null,
             'amount_paid' => $validated['amount_paid'] ?? null,
             'total' => $total,
-            'user_id' => $user->id
+            'user_id' => $user->id,
+            'payment_method'=>$validated['payment_method']
         ]);
     }
     private function get_products(array $items): array

@@ -17,7 +17,7 @@ class PurchaseService
 
         $total = $this->calculateTotalInvoicePrice($validated['items']);
         $purchase = $this->addInvoice($total, $validated);
-        $this->addItems($validated['items'], $purchase,$validated['date']);
+        $this->addItems($validated['items'], $purchase, $validated['date']);
         $this->reCacheProducts();
 
         return $purchase;
@@ -37,7 +37,8 @@ class PurchaseService
         $this->addNewItemsToInvoice($oldItemsMap, $newItemsMap, $purchase);
 
         $total = $this->calculateTotalInvoicePrice($validated['items']);
-        
+        $this->reCacheProducts();
+
         return $this->updatePurchase($purchase, $validated, $total);
     }
 
@@ -55,11 +56,11 @@ class PurchaseService
             'date'        => $validated['date'],
             'total'       => $total,
             'image'       => $validated['image'] ?? null,
-            'created_at'=>$validated['date']
+            'created_at' => $validated['date']
         ]);
     }
 
-    private function addItems(array $items, Purchase $purchase,$date): void
+    private function addItems(array $items, Purchase $purchase, $date): void
     {
         foreach ($items as $item) {
             PurchaseItems::create([
@@ -70,8 +71,8 @@ class PurchaseService
                 'price'           => $item['price'],
                 'total'           => $item['quantity'] * $item['price'],
                 'expire_date'     => $item['expire_date'],
-                            'created_at'      => $date,
-            'updated_at'      => $date,
+                'created_at'      => $date,
+                'updated_at'      => $date,
 
             ]);
         }
