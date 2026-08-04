@@ -84,7 +84,7 @@ class UserSeeder extends Seeder
                     "display_name" => "تعديل مورد",
                 ],
             ],
-            
+
             "reports" => [
                 [
                     "name" => "view_sales_products",
@@ -214,6 +214,12 @@ class UserSeeder extends Seeder
                     "display_section" => "الاعدادات",
                 ],
             ],
+            'price-checker' => [
+                [
+                    "name" => "view",
+                    "display_name" => "عرض شاشه الاسعار",
+                ],
+            ]
 
         ];
         // Create Roles
@@ -273,7 +279,7 @@ class UserSeeder extends Seeder
 
             $user->assignRole($data['role']);
         }
-               $units = [
+        $units = [
             ['name' => 'كجم', 'created_at' => now(), 'updated_at' => now()],
             ['name' => 'عدد', 'created_at' => now(), 'updated_at' => now()],
         ];

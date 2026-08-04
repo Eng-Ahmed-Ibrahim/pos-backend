@@ -21,23 +21,22 @@ use App\Http\Controllers\Api\v1\FinancialReportController;
 use App\Http\Controllers\Api\V1\WarehouseInventoryController;
 
 Route::prefix('v1')->group(function () {
-    
+
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login'])->name('login');
-    
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
-        
+
         Route::post('/products/import', [ProductImportController::class, 'import']);
         Route::get('/wastes', [WasteController::class, 'index']);
         Route::post('/wastes', [WasteController::class, 'store']);
         Route::apiResource('categories', CategoryController::class);
-        
+
         Route::apiResource('sub-categories', SubCategoryController::class);
-        
-        Route::get('point-of-sale/products', [ProductsController::class, 'cached_product']);
-        
+
+
         Route::apiResource('products', ProductsController::class);
         Route::apiResource('suppliers', SupplierController::class);
         Route::apiResource('purchases', PurchaseController::class);
@@ -51,8 +50,8 @@ Route::prefix('v1')->group(function () {
         Route::get('sales/{id}', [SaleController::class, 'show']);
 
         Route::get('purchase/return', [SaleReturnController::class, 'index']);
-    Route::get('purchase/return/products', [SaleReturnController::class, 'products']);
-    Route::post('purchase/return', [SaleReturnController::class, 'store']);
+        Route::get('purchase/return/products', [SaleReturnController::class, 'products']);
+        Route::post('purchase/return', [SaleReturnController::class, 'store']);
 
         Route::get('sales/{id}', [SaleReturnController::class, 'showSale']);
         Route::post('sales/{sale}/return', [SaleReturnController::class, 'store']);
@@ -70,4 +69,5 @@ Route::prefix('v1')->group(function () {
         Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
         Route::get('cashier-reports', [ReportsController::class, 'cashier_reports']);
     });
+    Route::get('point-of-sale/products', [ProductsController::class, 'cached_product']);
 });
