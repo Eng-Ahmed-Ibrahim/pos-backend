@@ -19,6 +19,7 @@ class Helpers
         return Cache::rememberForever('categories', function () {
             return DB::table('categories')
                 ->orderByDesc('created_at')
+
                 ->get()
                 ->toArray();
         });
@@ -35,6 +36,7 @@ class Helpers
         return Cache::rememberForever('suppliers', function () {
             return DB::table('suppliers')
                 ->orderByDesc('created_at')
+                ->whereNull("deleted_at")
                 ->get()
                 ->toArray();
         });
@@ -72,6 +74,7 @@ class Helpers
                     'products.category_id',
                     'products.sub_category_id'
                 )
+                ->whereNull("deleted_at")
                 ->where('products.price', '>', 0)
                 ->whereExists(function ($query) {
                     $query->select(DB::raw(1))
@@ -80,6 +83,7 @@ class Helpers
                         ->where('purchase_items.remaining_stock', '>', 0);
                 })
                 ->get()
+                
                 ->toArray();
         });
     }
@@ -104,6 +108,7 @@ class Helpers
                     'products.unit_id',
                     'units.name as unit_name'
                 )
+                ->whereNull("deleted_at")
                 ->get()
                 ->toArray();
         });

@@ -33,6 +33,11 @@ class SaleController extends Controller
             $sale = DB::transaction(function () use ($validated, $user) {
                 return $this->salesService->create_sale($validated, $user);
             });
+            return response()->json([
+                'invoice_id'=>$sale->id,
+                'status' => true,
+                'message' => 'تم إتمام عملية البيع بنجاح',
+            ], 201);
         } catch (\Throwable $e) {
 
             return response()->json([
@@ -43,10 +48,6 @@ class SaleController extends Controller
 
 
 
-        return response()->json([
-            'status' => true,
-            'message' => 'تم إتمام عملية البيع بنجاح',
-        ], 201);
     }
 
     public function show($id)

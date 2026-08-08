@@ -149,12 +149,17 @@ $products = $query
     public function destroy($id)
     {
         $product = Product::find($id);
-
         if (!$product) {
             return response()->json([
                 'status' => false,
                 'message' => 'Product not found'
             ], 404);
+        }
+        if($product->purchaseItems()->exist()){
+            return response()->json([
+                "message"=>"لا يمكن حذف هذا المنتج",
+                "status"=>false
+            ],422);
         }
 
         $product->delete();

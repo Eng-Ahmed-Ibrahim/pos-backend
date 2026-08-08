@@ -67,7 +67,6 @@ class RolesController extends Controller
     // UPDATE ROLE
     public function update(Request $request, $id)
     {
-        // 🔒 Protect the admin role (id = 1) from being modified
         if ((int) $id === 1) {
             return response()->json([
                 "status" => false,
@@ -104,11 +103,18 @@ class RolesController extends Controller
             return response()->json([
                 "status" => false,
                 "message" => "لا يمكن حذف دور المدير الأساسي"
-            ], 403);
+            ], 422);
         }
+
 
         $role = Role::findOrFail($id);
 
+        if($role->users()->exists()){
+                       return response()->json([
+                "status" => false,
+                "message" => "لا يمكن حذف دور مربوط بي مستخدمين"
+            ], 422);
+        }
         $role->delete();
 
         return response()->json([

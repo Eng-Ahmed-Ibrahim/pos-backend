@@ -74,6 +74,7 @@ class SaleReturnController extends Controller
             ->join('products', 'products.id', '=', 'purchase_items.product_id')
             ->where('purchases.supplier_id', $supplierId)
             ->where('purchase_items.remaining_stock', '>', 0)
+            ->whereNull('purchases.deleted_at')
             ->groupBy('products.id', 'products.name', 'products.barcode', 'products.category_id')
             ->having('available_qty', '>', 0);
 
@@ -84,7 +85,7 @@ class SaleReturnController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('products.name', 'like', "%{$search}%")
-                  ->orWhere('products.barcode', 'like', "%{$search}%");
+                    ->orWhere('products.barcode', 'like', "%{$search}%");
             });
         }
 

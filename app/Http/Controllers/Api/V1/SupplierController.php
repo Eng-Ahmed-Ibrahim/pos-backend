@@ -64,7 +64,12 @@ class SupplierController extends Controller
                 'message' => 'Supplier not found',
             ], 404);
         }
-
+       if ($supplier->purchases()->exists()) {
+            return response()->json([
+                "status" => false,
+                "message" => "لا يمكن تعديل المورد لان لديه مشتريات مرتبطه به"
+            ]);
+        }
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
             'phone'   => 'required|string|max:20',
@@ -100,10 +105,12 @@ class SupplierController extends Controller
                 'message' => 'Supplier not found',
             ], 404);
         }
-        if($supplier->purchases()->exists()){
+        Helpers::delete_suppliers();
+
+        if ($supplier->purchases()->exists()) {
             return response()->json([
-                "status"=>false,
-                "message"=>"لا يمكن حذف المورد لان لديه مشتريات مرتبطه به"
+                "status" => false,
+                "message" => "لا يمكن حذف المورد لان لديه مشتريات مرتبطه به"
             ]);
         }
 
