@@ -5,20 +5,29 @@ namespace App\Services;
 use App\Helpers\Helpers;
 use App\Models\Purchase;
 use App\Models\PurchaseItems;
+use App\Repositories\PurchaseItemRepository;
+use App\Repositories\PurchasesRepository;
 use Illuminate\Support\Facades\Storage;
 
 class PurchaseService
 {
+
+    function __construct(
+        protected PurchaseItemRepository $purchaseItemRepo,
+        protected PurchasesRepository $purchaseRepo,
+        protected ImageUploadService $imageService,
+        protected ProductService $productService
+    ) {}
     public function createInvoice(array $validated, $imageFile = null)
     {
         if ($imageFile) {
-            $validated['image'] = $this->uploadImage($imageFile);
+            $validated['image'] = $this->imageService->upload($imageFile, 'uploads/purchases');
         }
 
         $total = $this->calculateTotalInvoicePrice($validated['items']);
         $purchase = $this->addInvoice($total, $validated);
         $this->addItems($validated['items'], $purchase, $validated['date']);
-        $this->reCacheProducts();
+        $this->productService->clear();
 
         return $purchase;
     }
@@ -26,8 +35,8 @@ class PurchaseService
     public function updateInvoiceItems(Purchase $purchase, array $validated, $imageFile = null)
     {
         if ($imageFile) {
-            $this->deleteOldImage($purchase->image);
-            $validated['image'] = $this->uploadImage($imageFile);
+            $this->imageService->delete($purchase->image);
+            $validated['image'] = $this->imageService->upload($imageFile, 'uploads/purchases');
         }
 
         $oldItemsMap = $purchase->items->keyBy('product_id');
@@ -37,10 +46,12 @@ class PurchaseService
         $this->addNewItemsToInvoice($oldItemsMap, $newItemsMap, $purchase);
 
         $total = $this->calculateTotalInvoicePrice($validated['items']);
-        $this->reCacheProducts();
+        $this->productService->clear();
 
         return $this->updatePurchase($purchase, $validated, $total);
     }
+
+
 
     public function calculateTotalInvoicePrice(array $items): float
     {
@@ -49,9 +60,11 @@ class PurchaseService
         });
     }
 
+
+
     private function addInvoice(float $total, array $validated): Purchase
     {
-        return Purchase::create([
+        return $this->purchaseRepo->create([
             'supplier_id' => $validated['supplier_id'],
             'date'        => $validated['date'],
             'total'       => $total,
@@ -63,7 +76,7 @@ class PurchaseService
     private function addItems(array $items, Purchase $purchase, $date): void
     {
         foreach ($items as $item) {
-            PurchaseItems::create([
+            $this->purchaseItemRepo->create([
                 'purchase_id'     => $purchase->id,
                 'product_id'      => $item['product_id'],
                 'quantity'        => $item['quantity'],
@@ -89,8 +102,7 @@ class PurchaseService
                 if ($newRemaining < 0) {
                     throw new \Exception("لا يمكن تقليل الكمية للمنتج '{$oldItem->product->name}'، تم بيع جزء منها بالفعل");
                 }
-
-                $oldItem->update([
+                $this->purchaseItemRepo->update($oldItem, [
                     'quantity'        => $newItem['quantity'],
                     'remaining_stock' => $newRemaining,
                     'price'           => $newItem['price'],
@@ -101,7 +113,7 @@ class PurchaseService
                 if ($oldItem->remaining_stock < $oldItem->quantity) {
                     throw new \Exception("لا يمكن حذف المنتج \"{$oldItem->product->name}\" لأنه تم بيع جزء منه بالفعل");
                 }
-                $oldItem->delete();
+                $this->purchaseItemRepo->delete($oldItem);
             }
         }
     }
@@ -110,7 +122,7 @@ class PurchaseService
     {
         foreach ($newItemsMap as $productId => $newItem) {
             if (!$oldItemsMap->has($productId)) {
-                PurchaseItems::create([
+                $this->purchaseItemRepo->create([
                     'purchase_id'     => $purchase->id,
                     'product_id'      => $productId,
                     'quantity'        => $newItem['quantity'],
@@ -123,40 +135,15 @@ class PurchaseService
         }
     }
 
-    private function updatePurchase(Purchase $purchase, array $validated, float $total): Purchase
+    private function updatePurchase(Purchase $purchase, array $validated, float $total)
     {
-        $purchase->update([
+
+        return $this->purchaseRepo->update($purchase, [
             'supplier_id' => $validated['supplier_id'],
             'date'        => $validated['date'],
             'notes'       => $validated['notes'] ?? $purchase->notes,
             'total'       => $total,
             'image'       => $validated['image'] ?? $purchase->image,
-        ]);
-
-        return $purchase;
-    }
-
-    private function reCacheProducts(): void
-    {
-        Helpers::delete_products();
-    }
-    // --- دوال مساعدة لإدارة الصور بشكل نظيف وآمن ---
-
-    private function uploadImage($image): string
-    {
-        // حفظ الصورة داخل مجلد public/uploads/categories باستخدام Storage Facade
-        $path = $image->store('uploads/categories', 'public');
-        return 'storage/' . $path;
-    }
-
-    private function deleteOldImage(?string $path): void
-    {
-        if (!$path) return;
-
-        // تحويل المسار المخزن لمسار يمكن للـ Storage التعامل معه وحذفه
-        $relativePath = str_replace('storage/', '', $path);
-        if (Storage::disk('public')->exists($relativePath)) {
-            Storage::disk('public')->delete($relativePath);
-        }
+        ]);;
     }
 }

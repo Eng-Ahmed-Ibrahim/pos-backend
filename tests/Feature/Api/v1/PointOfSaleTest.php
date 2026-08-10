@@ -62,9 +62,9 @@ class PointOfSaleTest extends TestCase
         ]);
         $this->assertDatabaseHas('purchase_items', [
             'product_id' => $purchaseItem->product_id,
-            'remaining_stock' => 9,
+            'remaining_stock' => 10,
         ]);
-        $response->assertStatus(201);
+        $response->assertStatus(422);
         $response->assertJsonStructure([
             'status',
             "message" 

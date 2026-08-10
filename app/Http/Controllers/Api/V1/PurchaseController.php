@@ -99,9 +99,11 @@ class PurchaseController extends Controller
                 return $this->PurchaseService->updateInvoiceItems($purchase, $validated, $request->file('image'));
             });
 
+            
             return response()->json([
                 'status' => true,
                 'message' => 'تم تحديث الفاتورة بنجاح',
+            
                 'data' => $purchase->load('items.product', 'supplier'),
             ], 200);
         } catch (\Exception $e) {

@@ -1,14 +1,15 @@
 <?php
 
-namespace Tests\Feature\Api\v1;
+namespace Tests\Feature\Api\Auth\v1;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-class AuthTest extends TestCase
+class AuthWithUnitTest extends TestCase
 {
     use RefreshDatabase;    
+
     public function test_login_without_credentials()
     {
         $response = $this->postJson('/api/v1/login', []);

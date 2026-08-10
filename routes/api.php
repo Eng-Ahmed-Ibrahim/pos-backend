@@ -22,8 +22,10 @@ use App\Http\Controllers\Api\V1\WarehouseInventoryController;
 
 Route::prefix('v1')->group(function () {
 
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::middleware("guest:sanctum")->group(function () {
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/login', [AuthController::class, 'login'])->name('login');
+    });
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

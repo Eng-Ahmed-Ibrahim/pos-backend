@@ -3,35 +3,16 @@
 use App\Models\Product;
 use Carbon\Carbon;
 use App\Models\PurchaseItems;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return "Hello world";
+    return "<a href='/register'> Register </a> <br> <a href='/login' > Login </a>";
 });
-Route::get('/1', function () {
-
-    DB::transaction(function () {
-
-        $product = Product::where('id', 95)
-            ->lockForUpdate()
-            ->first();
-
-        sleep(20);
-
-        $product->price += 1;
-        $product->save();
-    });
-
-    return 'Done';
-});
-
-Route::get('/2', function () {
-    $product = Product::where("id", "95")->first();
-    return $product->price;
-})->name('signup');
 
 Route::get('/test', function () {
     return view('test', ['title' => "Hello world"]);
@@ -46,10 +27,11 @@ Route::post('/login', function (Request $request) {
         "password" => "required"
     ]);
         $credentials = $request->only('email', 'password');
+ 
 
     if (Auth::attempt($credentials)) {
         $request->session()->regenerate();
-        return redirect()->intended('/dashboard');
+        return redirect('/dashboard');
     }
 
     return back()->withErrors([
