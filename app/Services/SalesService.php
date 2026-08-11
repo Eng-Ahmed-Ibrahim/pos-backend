@@ -6,10 +6,20 @@ use Exception;
 use App\Models\Sale;
 use App\Models\Product;
 use App\Models\PurchaseItems;
+use App\Repositories\ProductsRepository;
+use App\Repositories\PurchaseItemRepository;
+use App\Repositories\SaleRepository;
 
 class SalesService
 {
 
+    function __construct(
+        private SaleRepository $saleRepo,
+        private ProductsRepository $productRepo,
+        private PurchaseItemRepository $purchaseItemsRepo
+        )
+    {
+    }
     public function create_sale($validated, $user)
     {
 
@@ -26,7 +36,7 @@ class SalesService
         $total = collect($validated['items'])
             ->sum(fn($item) => $item['quantity'] * $item['price']);
 
-        return  Sale::create([
+        return  $this->saleRepo->create([
             'customer_name' => $validated['customer_name'] ?? null,
             'amount_paid' => $validated['amount_paid'] ?? null,
             'total' => $total,
@@ -40,33 +50,12 @@ class SalesService
             ->pluck('product_id')
             ->unique();
 
-        $products =  Product::whereIn('id', $productIds)
-            ->lockForUpdate()
-            ->withSum([
-                'purchaseItems as current_stock' => function ($q) {
-                    $q->where('remaining_stock', '>', 0);
-                }
-            ], 'remaining_stock')
-            ->get()
-            ->keyBy('id');
+        $products =  $this->productRepo->get_products($productIds);
         return [$products, $productIds];
     }
     private function get_batches($productIds) 
     {
-        $allBatches = PurchaseItems::whereIn('purchase_items.product_id', $productIds)
-            ->where('purchase_items.remaining_stock', '>', 0)
-            ->join(
-                'purchases',
-                'purchases.id',
-                '=',
-                'purchase_items.purchase_id'
-            )
-            ->whereNull('purchases.deleted_at')
-            ->orderBy('purchases.date')
-            ->select('purchase_items.*')
-            ->lockForUpdate()
-            ->get()
-        ->groupBy('product_id');
+        $allBatches = $this->purchaseItemsRepo->get_batches($productIds);
         return $allBatches;
     }
     private function salesItems($validated, $products, $allBatches): array
