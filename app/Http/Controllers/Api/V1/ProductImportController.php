@@ -17,7 +17,7 @@ class ProductImportController extends Controller
 
         set_time_limit(0);
 
-        $import = new ProductsImport();
+        $import = new ProductsImport(1);
 
         Excel::import($import, $request->file('file'));
 

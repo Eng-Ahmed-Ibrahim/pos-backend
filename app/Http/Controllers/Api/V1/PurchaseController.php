@@ -23,11 +23,11 @@ class PurchaseController extends Controller
     public function __construct(private PurchaseService $PurchaseService) {}
     public function index(Request $request)
     {
-        $purchases = Purchase::
-        withCount('items')
-        ->with(['supplier'])
-        ->orderBy("id", "desc")
-        ->get();
+        $purchases = Purchase::withCount('items')
+            ->withSum('items', 'total')
+            ->with(['supplier'])
+            ->orderBy("id", "desc")
+            ->get();
         return response()->json([
             "status" => true,
             "purchases" => $purchases
@@ -35,17 +35,23 @@ class PurchaseController extends Controller
     }
     public function show(Request $request, $id)
     {
-        $purchase = Purchase::with([
-            'supplier:id,name',
-            'items.product' => function ($q) {
-                $q->withTrashed();
-            }
-            ,
-            'items.product.unit:id,name'
-        ])->findOrFail($id);
+        $purchase = Purchase::with(['supplier:id,name'])->findOrFail($id);
+
+        $items = PurchaseItems::where('purchase_id', $purchase->id)
+            ->with([
+                'product',
+                'product.unit:id,name',
+            ])->paginate(15);
         return response()->json([
-            "status" => true,
-            "purchase" => $purchase
+            'status' => true,
+            'purchase' => $purchase,
+            'pagination' => [
+                'current_page' => $items->currentPage(),
+                'last_page'    => $items->lastPage(),
+                'per_page'     => $items->perPage(),
+                'total'        => $items->total(),
+            ],
+            'items' => $items
         ]);
     }
     public function create(Request $request)
@@ -99,18 +105,18 @@ class PurchaseController extends Controller
                 return $this->PurchaseService->updateInvoiceItems($purchase, $validated, $request->file('image'));
             });
 
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'تم تحديث الفاتورة بنجاح',
-            
+
                 'data' => $purchase->load('items.product', 'supplier'),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
                 'message' => $e->getMessage(),
-            ], 422); 
+            ], 422);
         }
     }
     public function destroy($id)

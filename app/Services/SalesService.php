@@ -23,18 +23,19 @@ class SalesService
     public function create_sale($validated, $user)
     {
 
-        $sale  = $this->add_sale($validated, $user);
+        // create sale 
         [$products, $productIds] = $this->get_products($validated['items']);
+        $sale  = $this->add_sale($validated, $user,$products);
         $allBatches = $this->get_batches($productIds);
-        [$saleItemBatchesData, $saleItemsData] = $this->salesItems($validated, $products, $allBatches);
+        [$saleItemBatchesData, $saleItemsData] = $this->salesItems($validated['items'], $products, $allBatches);
         $this->add_sale_batches($saleItemsData,$sale,$saleItemBatchesData);
         return $sale;
     }
 
-    private function add_sale(array  $validated, object  $user): object
+    private function add_sale(array  $validated, object  $user , object $prodcuts): object
     {
         $total = collect($validated['items'])
-            ->sum(fn($item) => $item['quantity'] * $item['price']);
+            ->sum(fn($item) => $item['quantity'] * $prodcuts[$item['product_id']]->price  );
 
         return  $this->saleRepo->create([
             'customer_name' => $validated['customer_name'] ?? null,
@@ -58,11 +59,11 @@ class SalesService
         $allBatches = $this->purchaseItemsRepo->get_batches($productIds);
         return $allBatches;
     }
-    private function salesItems($validated, $products, $allBatches): array
+    private function salesItems($items, $products, $allBatches): array
     {
         $saleItemBatchesData = [];
         $saleItemsData = [];
-        foreach ($validated['items'] as $item) {
+        foreach ($items as $item) {
             $product = $products[$item['product_id']] ?? null;
 
             if (!$product) {
@@ -119,9 +120,9 @@ class SalesService
             $saleItemsData[] = [
                 'product_id' => $item['product_id'],
                 'quantity' => $item['quantity'],
-                'price' => $item['price'],
+                'price' => $product->price,
                 'total' =>
-                $item['quantity'] * $item['price'],
+                $item['quantity'] * $product->price,
             ];
             $saleItemBatchesData[] = $batchAllocations;
         }

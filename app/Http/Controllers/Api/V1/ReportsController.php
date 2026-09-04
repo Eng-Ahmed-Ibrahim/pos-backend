@@ -92,8 +92,8 @@ class ReportsController extends Controller
                 Carbon::parse($validatedData['to'])->endOfDay()
             ]);
         }
-        $total_cash_price = (clone $query)->where("payment_method",'cash')->sum('total');
-        $total_visa_price = (clone $query)->where("payment_method",'visa')->sum('total');
+        $total_cash_price = (clone $query)->where("status",'completed')->where("payment_method",'cash')->sum('total');
+        $total_visa_price = (clone $query)->where("status",'completed')->where("payment_method",'visa')->sum('total');
         $sales = $query
             ->with(['user:id,name','items:id,sale_id,product_id,quantity,price,total','items.product:id,name'])
             ->select('id', 'user_id','payment_method', 'total', 'amount_paid', 'status', 'created_at')

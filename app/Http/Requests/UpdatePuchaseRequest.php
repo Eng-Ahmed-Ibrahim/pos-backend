@@ -31,9 +31,9 @@ class UpdatePuchaseRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'items.*.expire_date' => ['required', 'date'],
+            'items.*.quantity' => ['nullable', 'numeric'],
+            'items.*.price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.expire_date' => ['nullable', 'date'],
         ];
     }
     public function messages(): array
