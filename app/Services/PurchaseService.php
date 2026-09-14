@@ -69,7 +69,8 @@ class PurchaseService
             'date'        => $validated['date'],
             'total'       => $total,
             'image'       => $validated['image'] ?? null,
-            'created_at' => $validated['date']
+            'created_at' => $validated['date'],
+            "type"=>$validated['type'] ?? 'normal',
         ]);
     }
 

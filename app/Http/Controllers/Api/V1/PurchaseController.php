@@ -23,13 +23,17 @@ class PurchaseController extends Controller
     public function __construct(private PurchaseService $PurchaseService) {}
     public function index(Request $request)
     {
+        
+    $type = $request->type ?? "normal";
         $purchases = Purchase::withCount('items')
+            ->where("type",$type)
             ->withSum('items', 'total')
             ->with(['supplier'])
             ->orderBy("id", "desc")
             ->get();
         return response()->json([
             "status" => true,
+            "type"=>$type,
             "purchases" => $purchases
         ]);
     }
@@ -128,20 +132,14 @@ class PurchaseController extends Controller
         ]);
     }
 
-
-
-    public function storeReturn(Request $request, $id)
+    public function storeReturn(Request $request)
     {
-        $purchase = Purchase::with('items')->find($id);
-        if (!$purchase) {
-            return response()->json(['status' => false, 'message' => 'الفاتورة غير موجودة'], 404);
-        }
-
         $validator = Validator::make($request->all(), [
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'reason' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.purchase_item_id' => ['required', 'integer', 'exists:purchase_items,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'numeric'],
         ], [
             'items.required' => 'يجب اختيار صنف واحد على الأقل',
         ]);
@@ -156,60 +154,77 @@ class PurchaseController extends Controller
         $data = $validator->validated();
 
         try {
-            $purchaseReturn = DB::transaction(function () use ($data, $purchase) {
+            $purchaseReturn = DB::transaction(function () use ($data) {
                 $total = 0;
-                $lines = [];
+                $linesToCreate = [];
 
+                // سنبحث عن بنود المشتريات المتاحة لهذا المورد والتي بها رصة متبقية (remaining_stock > 0)
                 foreach ($data['items'] as $row) {
-                    // lockForUpdate عشان تمنع race condition لو في عملية بيع أو إرجاع تانية بتحصل في نفس اللحظة
-                    $item = PurchaseItems::where('id', $row['purchase_item_id'])
-                        ->where('purchase_id', $purchase->id)
+                    $qtyNeeded = $row['quantity'];
+
+                    // جلب بنود الشراء غير المنتهية لهذا المنتج والمورد (يمكن ترتيبها حسب الأحدث أو الأقدم FIFO/LIFO)
+                    $purchaseItems = PurchaseItems::where('product_id', $row['product_id'])
+                        ->whereHas('purchase', function ($q) use ($data) {
+                            $q->where('supplier_id', $data['supplier_id']);
+                        })
+                        ->where('remaining_stock', '>', 0)
+                        ->orderBy('id', 'desc') // أو 'asc' حسب نظام شركتك
                         ->lockForUpdate()
-                        ->first();
+                        ->get();
 
-                    if (!$item) {
-                        throw new \Exception('صنف غير تابع لهذه الفاتورة');
+                    $availableTotalStock = $purchaseItems->sum('remaining_stock');
+
+                    if ($qtyNeeded > $availableTotalStock) {
+                        $productName = $purchaseItems->first()?->product?->name ?? 'المنتج';
+                        throw new \Exception("الكمية المطلوب إرجاعها أكبر من المتاح للمنتج: {$productName}");
                     }
 
-                    if ($row['quantity'] > $item->remaining_stock) {
-                        throw new \Exception("الكمية المطلوب إرجاعها أكبر من المتاح للمنتج: {$item->product->name}");
+                    foreach ($purchaseItems as $item) {
+                        if ($qtyNeeded <= 0) break;
+
+                        $take = min($qtyNeeded, $item->remaining_stock);
+                        $lineTotal = $take * $item->price;
+                        $total += $lineTotal;
+
+                        $item->decrement('remaining_stock', $take);
+                        $item->increment('returned_quantity', $take);
+
+                        $linesToCreate[] = [
+                            'purchase_item_id' => $item->id,
+                            'product_id' => $item->product_id, // أضف هذا السطر لتجنب خطأ عدم وجود قيمة افتراضية
+                            'quantity' => $take,
+                            'price' => $item->price,
+                            'total' => $lineTotal,
+                        ];
+
+                        $qtyNeeded -= $take;
+
+                        $purchase = $item->purchase;
+                        $purchase->refresh();
+                        $allReturned = $purchase->items->every(fn($i) => $i->remaining_stock == 0);
+                        $anyReturned = $purchase->items->some(fn($i) => $i->returned_quantity > 0);
+
+                        $purchase->update([
+                            'status' => $allReturned ? 'returned' : ($anyReturned ? 'partial' : 'completed'),
+                        ]);
                     }
-
-                    $lineTotal = $row['quantity'] * $item->price;
-                    $total += $lineTotal;
-
-                    $item->decrement('remaining_stock', $row['quantity']);
-                    $item->increment('returned_quantity', $row['quantity']);
-
-                    $lines[] = [
-                        'purchase_item_id' => $item->id,
-                        'quantity' => $row['quantity'],
-                        'price' => $item->price,
-                        'total' => $lineTotal,
-                    ];
                 }
 
+                $firstPurchaseItemId = $linesToCreate[0]['purchase_item_id'] ?? null;
+                $firstPurchaseId = $firstPurchaseItemId ? PurchaseItems::find($firstPurchaseItemId)?->purchase_id : null;
+
                 $purchaseReturn = PurchaseReturn::create([
-                    'purchase_id' => $purchase->id,
+                    // 'purchase_id' => $firstPurchaseId,
+                    'supplier_id' => $data['supplier_id'],
                     'total' => $total,
                     'reason' => $data['reason'] ?? null,
                 ]);
 
-                foreach ($lines as $line) {
+                foreach ($linesToCreate as $line) {
                     $purchaseReturn->items()->create($line);
                 }
 
-                // تحديث حالة الفاتورة
-                $purchase->refresh();
-                $allReturned = $purchase->items->every(fn($i) => $i->remaining_stock == 0);
-                $anyReturned = $purchase->items->some(fn($i) => $i->returned_quantity > 0)
-                    ?? $purchase->items->contains(fn($i) => $i->returned_quantity > 0);
-
-                $purchase->update([
-                    'status' => $allReturned ? 'returned' : ($anyReturned ? 'partially_returned' : 'completed'),
-                ]);
-
-                Helpers::delete_products(); // نفس اللي بتعمله في store() عشان تحدّث أي cache
+                Helpers::delete_products(); // تحديث الـ Cache
 
                 return $purchaseReturn;
             });
@@ -220,7 +235,9 @@ class PurchaseController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم تنفيذ إرجاع المشتريات بنجاح',
-            'data' => ['sale' => $purchase->fresh()->load('items.product', 'supplier')],
+            'data' => $purchaseReturn,
         ], 201);
     }
+
+    
 }

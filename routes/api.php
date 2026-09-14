@@ -53,7 +53,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('purchase/return', [SaleReturnController::class, 'index']);
         Route::get('purchase/return/products', [SaleReturnController::class, 'products']);
-        Route::post('purchase/return', [SaleReturnController::class, 'store']);
+        Route::post('purchase/return', [PurchaseController::class, 'storeReturn']);
 
         Route::post('sales/{sale}/return', [SaleReturnController::class, 'store']);
 

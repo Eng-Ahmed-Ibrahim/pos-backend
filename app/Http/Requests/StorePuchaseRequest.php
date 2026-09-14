@@ -35,6 +35,7 @@ class StorePuchaseRequest extends FormRequest
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
             'items.*.expire_date' => ['required', 'date'],
+            "type"=>["nullable","in:normal,bonus"]
         ];
     }
     public function messages(): array
