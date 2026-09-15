@@ -12,4 +12,8 @@ class PurchaseReturnItem extends Model
     {
         return $this->belongsTo(PurchaseItems::class);
     }
+        public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

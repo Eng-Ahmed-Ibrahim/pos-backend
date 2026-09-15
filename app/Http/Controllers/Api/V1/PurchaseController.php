@@ -23,18 +23,37 @@ class PurchaseController extends Controller
     public function __construct(private PurchaseService $PurchaseService) {}
     public function index(Request $request)
     {
-        
-    $type = $request->type ?? "normal";
-        $purchases = Purchase::withCount('items')
-            ->where("type",$type)
+        $type = $request->type ?? "normal";
+
+        $query = Purchase::withCount('items')
+            ->where("type", $type)
             ->withSum('items', 'total')
-            ->with(['supplier'])
-            ->orderBy("id", "desc")
-            ->get();
+            ->with(['supplier']);
+
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->from);
+        }
+
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->to);
+        }
+
+        $totalPurchasesAmount = (clone $query)->get()->sum('items_sum_total');
+
+        $purchases = $query->orderBy("id", "desc")->get();
+
+        $suppliers = Helpers::cache_suppliers();
+
         return response()->json([
             "status" => true,
-            "type"=>$type,
-            "purchases" => $purchases
+            "type" => $type,
+            "purchases" => $purchases,
+            "total_amount" => $totalPurchasesAmount, 
+            "suppliers" => $suppliers
         ]);
     }
     public function show(Request $request, $id)
@@ -154,7 +173,7 @@ class PurchaseController extends Controller
         $data = $validator->validated();
 
         try {
-            $purchaseReturn = DB::transaction(function () use ($data) {
+            $purchaseReturn = DB::transaction(function () use ($data, $request) {
                 $total = 0;
                 $linesToCreate = [];
 
@@ -210,13 +229,10 @@ class PurchaseController extends Controller
                     }
                 }
 
-                $firstPurchaseItemId = $linesToCreate[0]['purchase_item_id'] ?? null;
-                $firstPurchaseId = $firstPurchaseItemId ? PurchaseItems::find($firstPurchaseItemId)?->purchase_id : null;
-
                 $purchaseReturn = PurchaseReturn::create([
-                    // 'purchase_id' => $firstPurchaseId,
                     'supplier_id' => $data['supplier_id'],
-                    'total' => $total,
+                    'total_amount' => $total,
+                    'user_id' => $request->user()->id,
                     'reason' => $data['reason'] ?? null,
                 ]);
 
@@ -238,6 +254,4 @@ class PurchaseController extends Controller
             'data' => $purchaseReturn,
         ], 201);
     }
-
-    
 }
