@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\SubCategoryController;
 use App\Http\Controllers\Api\V1\ProductImportController;
 use App\Http\Controllers\Api\v1\FinancialReportController;
 use App\Http\Controllers\Api\V1\PurchaseReturnReportController;
+use App\Http\Controllers\Api\V1\ScaleController;
 use App\Http\Controllers\Api\V1\WarehouseInventoryController;
 
 Route::prefix('v1')->group(function () {
@@ -71,6 +72,9 @@ Route::prefix('v1')->group(function () {
         Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
         Route::get('cashier-reports', [ReportsController::class, 'cashier_reports']);
         Route::get('purchase-returns-reports', [PurchaseReturnReportController::class, 'index']);
+
+        Route::get('productskg/export-excel', [ScaleController::class, 'download']);
+        Route::get('export-pdf/purchases', [PurchaseController::class, 'exportSuppliersPdf']);
     });
     Route::get('point-of-sale/products', [ProductsController::class, 'cached_product']);
 });

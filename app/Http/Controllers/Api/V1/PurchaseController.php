@@ -2,12 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Models\Product;
 use App\Helpers\Helpers;
-use App\Models\Category;
 use App\Models\Purchase;
-use App\Models\Supplier;
-use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use App\Models\PurchaseItems;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +13,7 @@ use App\Http\Requests\UpdatePuchaseRequest;
 use App\Models\PurchaseReturn;
 use App\Services\PurchaseService;
 use Illuminate\Support\Facades\Validator;
-
+use Mpdf\Mpdf;
 class PurchaseController extends Controller
 {
     public function __construct(private PurchaseService $PurchaseService) {}
@@ -37,6 +33,9 @@ class PurchaseController extends Controller
         if ($request->filled('from')) {
             $query->whereDate('date', '>=', $request->from);
         }
+        if ($request->filled('search')) {
+            $query->where("id", $request->search);
+        }
 
         if ($request->filled('to')) {
             $query->whereDate('date', '<=', $request->to);
@@ -52,7 +51,7 @@ class PurchaseController extends Controller
             "status" => true,
             "type" => $type,
             "purchases" => $purchases,
-            "total_amount" => $totalPurchasesAmount, 
+            "total_amount" => $totalPurchasesAmount,
             "suppliers" => $suppliers
         ]);
     }
@@ -254,4 +253,76 @@ class PurchaseController extends Controller
             'data' => $purchaseReturn,
         ], 201);
     }
+
+
+public function exportSuppliersPdf(Request $request)
+{
+    $type =$request->type ?? "normal";
+
+    $query = Purchase::query()
+        ->where("type", $type)
+        ->withSum('items', 'total')
+        ->with(['supplier']);
+
+    if ($request->filled('supplier_id')) {
+        $query->where('supplier_id',$request->supplier_id);
+    }
+    if ($request->filled('from')) {
+        $query->whereDate('date', '>=',$request->from);
+    }
+    if ($request->filled('to')) {
+        $query->whereDate('date', '<=',$request->to);
+    }
+    if ($request->filled('search')) {
+        $query->where("id", $request->search);
+    }
+
+    $purchases =$query->get();
+
+    // تجميع الفواتير حسب المورد
+    $groupedSuppliers = $purchases->groupBy('supplier_id')->map(function ($supplierPurchases) {
+        $firstPurchase =$supplierPurchases->first();
+        return [
+            'supplier_name'   => $firstPurchase->supplier ? $firstPurchase->supplier->name : 'مورد غير معروف',
+            'purchases_count' => $supplierPurchases->count(),
+            'total_amount'    => $supplierPurchases->sum('items_sum_total'),
+            'notes'           => ''
+        ];
+    })->values();
+
+    $grandTotal =$groupedSuppliers->sum('total_amount');
+
+    $data = [
+        'suppliers'  => $groupedSuppliers,
+        'grandTotal' => $grandTotal,
+        'from'       => $request->from,
+        'to'         => $request->to,
+    ];
+
+    // تحويل عرض الـ Blade إلى HTML
+    $html = view('pdf.suppliers_summary',$data)->render();
+
+    // تهيئة مكتبة mPDF
+    $mpdf = new Mpdf([
+        'mode'              => 'utf-8',
+        'format'            => 'A4',
+        'margin_left'       => 10,
+        'margin_right'      => 10,
+        'margin_top'        => 15,
+        'margin_bottom'     => 15,
+        'autoArabic'        => true,
+        'autoLangToFont'    => true,
+    ]);
+
+    $mpdf->SetDirectionality('rtl');
+    $mpdf->WriteHTML($html);
+
+    // ✅ التعديل هنا: استخدام 'S' لإرجاع البيانات كـ Binary Stream
+    $pdfOutput =$mpdf->Output('', 'S');
+
+    return response($pdfOutput, 200)
+        ->header('Content-Type', 'application/pdf')
+        ->header('Content-Disposition', 'attachment; filename="suppliers_report.pdf"')
+        ->header('Access-Control-Expose-Headers', 'Content-Disposition');
+}
 }
