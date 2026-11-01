@@ -57,16 +57,42 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        $data = Cache::remember(
-            "user_data_{$user->id}",
-            3600,
-            function () use ($user) {
+        // $data = Cache::remember(
+        //     "user_data_{$user->id}",
+        //     3600,
+        //     function () use ($user) {
 
-                $user->load([
-                    'roles.permissions'
-                ]);
+        //         $user->load([
+        //             'roles.permissions'
+        //         ]);
 
-                return [
+        //         return [
+        //             'user' => [
+        //                 'id' => $user->id,
+        //                 'name' => $user->name,
+        //                 'username' => $user->username,
+        //             ],
+
+        //             'permissions' => $user->getAllPermissions()
+        //                 ->pluck('name')
+        //                 ->values()
+        //                 ->toArray(),
+
+        //             'roles' => $user->getRoleNames()
+        //                 ->values()
+        //                 ->toArray(),
+
+        //             'settings' => Helpers::cache_settings()
+        //         ];
+        //     }
+        // );
+        $user->load([
+            'roles.permissions'
+        ]);
+        $data = 
+
+
+               [
                     'user' => [
                         'id' => $user->id,
                         'name' => $user->name,
@@ -84,8 +110,7 @@ class AuthController extends Controller
 
                     'settings' => Helpers::cache_settings()
                 ];
-            }
-        );
+            
 
         return response()->json($data);
     }

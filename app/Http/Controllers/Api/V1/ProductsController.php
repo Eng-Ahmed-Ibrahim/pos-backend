@@ -156,12 +156,13 @@ class ProductsController extends Controller
                 'message' => 'Product not found'
             ], 404);
         }
-        if ($product->purchaseItems()->exists()) {
+        if ($product->purchaseItems()->where('remaining_stock', '>', 0)->exists()) {
             return response()->json([
-                "message" => "لا يمكن حذف هذا المنتج",
+                "message" => "لا يمكن حذف هذا المنتج لوجود مخزون متبقي منه",
                 "status" => false
             ], 422);
         }
+
 
         $product->delete();
         Helpers::delete_products();

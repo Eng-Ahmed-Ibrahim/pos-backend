@@ -119,10 +119,14 @@ class SaleReturnController extends Controller
                 'min:0'
             ],
         ]);
-
+        
+        
         try {
-
+            
             $result = DB::transaction(function () use ($request, $id) {
+                $currentCashierId = Sale::whereDate('created_at', today())
+                    ->latest('id')
+                    ->value('user_id');
 
                 $sale = Sale::with('items')
                     ->where('id', $id)
@@ -136,6 +140,7 @@ class SaleReturnController extends Controller
 
                 $saleReturn = SaleReturn::create([
                     'sale_id' => $sale->id,
+                    "cashier_id"=>$currentCashierId,
                     'total_amount'   => 0,
                     'user_id'=>$request->user()->id
                 ]);
@@ -245,7 +250,7 @@ class SaleReturnController extends Controller
                 }
 
                 $saleReturn->total_amount = $returnTotal;
-                $sale->total -=$returnTotal;
+                // $sale->total -=$returnTotal;
                 $saleReturn->save();
                 $sale->save();
 
@@ -255,10 +260,10 @@ class SaleReturnController extends Controller
 
             return response()->json([
                 'message' => 'تم تسجيل المرتجع بنجاح',
-
+                'status' => true,
                 'return' => $result
                     ->load('items'),
-
+ 
             ], 201);
         } catch (\Throwable $e) {
 

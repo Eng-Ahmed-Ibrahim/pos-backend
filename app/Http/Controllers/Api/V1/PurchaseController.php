@@ -14,6 +14,7 @@ use App\Models\PurchaseReturn;
 use App\Services\PurchaseService;
 use Illuminate\Support\Facades\Validator;
 use Mpdf\Mpdf;
+
 class PurchaseController extends Controller
 {
     public function __construct(private PurchaseService $PurchaseService) {}
@@ -299,10 +300,8 @@ public function exportSuppliersPdf(Request $request)
         'to'         => $request->to,
     ];
 
-    // تحويل عرض الـ Blade إلى HTML
     $html = view('pdf.suppliers_summary',$data)->render();
 
-    // تهيئة مكتبة mPDF
     $mpdf = new Mpdf([
         'mode'              => 'utf-8',
         'format'            => 'A4',
@@ -317,7 +316,6 @@ public function exportSuppliersPdf(Request $request)
     $mpdf->SetDirectionality('rtl');
     $mpdf->WriteHTML($html);
 
-    // ✅ التعديل هنا: استخدام 'S' لإرجاع البيانات كـ Binary Stream
     $pdfOutput =$mpdf->Output('', 'S');
 
     return response($pdfOutput, 200)

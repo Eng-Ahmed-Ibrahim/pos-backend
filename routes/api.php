@@ -75,6 +75,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('productskg/export-excel', [ScaleController::class, 'download']);
         Route::get('export-pdf/purchases', [PurchaseController::class, 'exportSuppliersPdf']);
+        Route::get('/warehouse-inventory/pdf',[WarehouseInventoryController::class, 'exportPdf']);
     });
     Route::get('point-of-sale/products', [ProductsController::class, 'cached_product']);
 });

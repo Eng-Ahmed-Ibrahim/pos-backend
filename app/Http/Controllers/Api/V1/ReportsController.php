@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItems;
+use App\Models\SaleReturn;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -82,17 +83,24 @@ class ReportsController extends Controller
 
         
         $query = Sale::query();
-
-        if (!empty($validatedData['user_id']))
+        $queryReturn = SaleReturn::query();
+        if (!empty($validatedData['user_id'])){
             $query->where("user_id", $validatedData['user_id']);
+            $queryReturn->where("cashier_id", $validatedData['user_id']);
+        }
 
         if (!empty($validatedData['from']) &&  !empty($validatedData['to'])) {
             $query->whereBetween('created_at', [
                 Carbon::parse($validatedData['from'])->startOfDay(),
                 Carbon::parse($validatedData['to'])->endOfDay()
             ]);
+            $queryReturn->whereBetween('created_at', [
+                Carbon::parse($validatedData['from'])->startOfDay(),
+                Carbon::parse($validatedData['to'])->endOfDay()
+            ]);
         }
-        $total_cash_price = (clone $query)->where("status","completed")->where("payment_method",'cash')->sum('total');
+        $total_return = $queryReturn->sum("total_amount");
+        $total_cash_price = (clone $query)->where("status","completed")->where("payment_method",'cash')->sum('total') - $total_return;
         $total_visa_price = (clone $query)->where("status","completed")->where("payment_method",'visa')->sum('total');
         $sales = $query
             ->with(['user:id,name','items:id,sale_id,product_id,quantity,price,total','items.product:id,name'])
@@ -105,6 +113,7 @@ class ReportsController extends Controller
         return response()->json([
             "data" => [
                 "sales" => $sales,
+                "total_return"=>$total_return,
                 'total_cash_price' => $total_cash_price,
                 'total_visa_price' => $total_visa_price,
                 'cashiers'=>$cashiers

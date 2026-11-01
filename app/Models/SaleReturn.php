@@ -9,7 +9,7 @@ class SaleReturn extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['sale_id', 'user_id', 'total_amount', 'reason'];
+    protected $fillable = ['sale_id', 'user_id', 'total_amount',"cashier_id", 'reason'];
 
     public function sale()
     {
