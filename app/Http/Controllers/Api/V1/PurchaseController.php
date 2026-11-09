@@ -299,9 +299,7 @@ public function exportSuppliersPdf(Request $request)
         'from'       => $request->from,
         'to'         => $request->to,
     ];
-
     $html = view('pdf.suppliers_summary',$data)->render();
-
     $mpdf = new Mpdf([
         'mode'              => 'utf-8',
         'format'            => 'A4',
@@ -315,7 +313,6 @@ public function exportSuppliersPdf(Request $request)
 
     $mpdf->SetDirectionality('rtl');
     $mpdf->WriteHTML($html);
-
     $pdfOutput =$mpdf->Output('', 'S');
 
     return response($pdfOutput, 200)

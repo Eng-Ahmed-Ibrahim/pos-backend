@@ -67,6 +67,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('reports/financial')->group(function () {
             Route::get('/', [FinancialReportController::class, 'summary']);
             Route::get('/products', [FinancialReportController::class, 'products']);
+            Route::get('/pdf', [FinancialReportController::class, 'downloadPdf']); 
         });
         Route::get('sales', [SaleController::class, 'index']);
         Route::get('warehouse-inventory', [WarehouseInventoryController::class, 'index']);
